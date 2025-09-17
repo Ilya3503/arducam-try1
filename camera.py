@@ -1,8 +1,4 @@
 import numpy as np
-
-import sys
-sys.path.append("/home/mikhailplotitsin/Arducam_tof_camera/python")
-
 import ArduCamDepthCamera as ac
 
 def init_camera():
