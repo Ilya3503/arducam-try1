@@ -1,5 +1,5 @@
 import numpy as np
-import ArduCamDepthCamera as ac
+import ArducamDepthCamera as ac
 
 def init_camera():
     cam = ac.ArducamCamera()
