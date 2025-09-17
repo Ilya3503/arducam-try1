@@ -1,38 +1,43 @@
 import numpy as np
 import ArducamDepthCamera as ac
 
+
 def init_camera():
     cam = ac.ArducamCamera()
-    if cam.init(ac.TOFConnect.CSI, ac.TOFOutput.DEPTH, 0) != 0:
-        raise RuntimeError("Camera initialization failed")
-    if cam.start() != 0:
+    if cam.open(ac.Connection.CSI, 0) != 0:
+        raise RuntimeError("Failed to open camera")
+    if cam.start(ac.FrameType.DEPTH) != 0:
         raise RuntimeError("Failed to start camera")
     return cam
 
-def capture_frame(cam, timeout_ms=200):
+
+def capture_frame(cam, timeout_ms=2000):
     frame = cam.requestFrame(timeout_ms)
     if frame is None:
         raise RuntimeError("No frame from camera (timeout)")
-    depth = frame.getDepthData().copy()
-    amplitude = frame.getAmplitudeData().copy()
+
+    # depth (float32, в метрах) и confidence (0–255, качество сигнала)
+    depth = frame.depth_data.copy()
+    confidence = frame.confidence_data.copy()
     cam.releaseFrame(frame)
-    return depth, amplitude
+    return depth, confidence
+
 
 def depth_to_pointcloud(depth: np.ndarray,
-                        amplitude: np.ndarray = None,
-                        amp_threshold: float = 30.0,
+                        confidence: np.ndarray = None,
+                        conf_threshold: float = 30.0,
                         stride: int = 1):
-
     h, w = depth.shape
 
     u = np.arange(0, w, stride)
     v = np.arange(0, h, stride)
     uu, vv = np.meshgrid(u, v)
+
     Z = depth[::stride, ::stride]
-    if amplitude is not None:
-        AMP = amplitude[::stride, ::stride]
+    if confidence is not None:
+        CONF = confidence[::stride, ::stride]
     else:
-        AMP = None
+        CONF = None
 
     cx = w / 2.0
     cy = h / 2.0
@@ -44,12 +49,13 @@ def depth_to_pointcloud(depth: np.ndarray,
     pts = np.stack((X, Y, Z), axis=-1).reshape(-1, 3)
 
     mask = np.isfinite(pts[:, 2]) & (pts[:, 2] > 0.0)
-    if AMP is not None:
-        amp_flat = AMP.reshape(-1)
-        mask &= (amp_flat > amp_threshold)
+    if CONF is not None:
+        conf_flat = CONF.reshape(-1)
+        mask &= (conf_flat > conf_threshold)
 
     pts = pts[mask]
     return pts.astype(np.float32)
+
 
 def save_pointcloud_ply(filename: str, points: np.ndarray):
     n = points.shape[0]
@@ -60,6 +66,7 @@ def save_pointcloud_ply(filename: str, points: np.ndarray):
         f.write("end_header\n")
         for x, y, z in points:
             f.write(f"{x:.6f} {y:.6f} {z:.6f}\n")
+
 
 def save_depth_npy(filename: str, depth: np.ndarray):
     np.save(filename, depth)
