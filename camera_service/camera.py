@@ -11,23 +11,56 @@ def init_camera():
     return cam
 
 
+def get_camera_info(cam):
+    try:
+        info = cam.getCameraInfo()
+    except Exception:
+        return {
+            "width": 240,
+            "height": 180,
+            "fx": 200.0,
+            "fy": 200.0,
+            "cx": 240 / 2.0,
+            "cy": 180 / 2.0
+        }
+
+    return {
+        "width": getattr(info, "width", 240),
+        "height": getattr(info, "height", 180),
+        "fx": getattr(info, "fx", 200.0),
+        "fy": getattr(info, "fy", 200.0),
+        "cx": getattr(info, "cx", getattr(info, "width", 240) / 2.0),
+        "cy": getattr(info, "cy", getattr(info, "height", 180) / 2.0),
+    }
+
+
+
 def capture_frame(cam, timeout_ms=2000):
     frame = cam.requestFrame(timeout_ms)
     if frame is None:
         raise RuntimeError("No frame from camera (timeout)")
 
-    # depth (float32, в метрах) и confidence (0–255, качество сигнала)
     depth = frame.depth_data.copy()
     confidence = frame.confidence_data.copy()
     cam.releaseFrame(frame)
+
+    if depth.shape != (180, 240):
+        raise ValueError(f"Unexpected depth shape {depth.shape}, expected (180,240)")
+
     return depth, confidence
 
 
 def depth_to_pointcloud(depth: np.ndarray,
+                        intrinsics: dict,
                         confidence: np.ndarray = None,
                         conf_threshold: float = 30.0,
                         stride: int = 1):
     h, w = depth.shape
+
+    fx = intrinsics.get("fx", 200.0)
+    fy = intrinsics.get("fy", 200.0)
+    cx = intrinsics.get("cx", w / 2.0)
+    cy = intrinsics.get("cy", h / 2.0)
 
     u = np.arange(0, w, stride)
     v = np.arange(0, h, stride)
@@ -39,10 +72,6 @@ def depth_to_pointcloud(depth: np.ndarray,
     else:
         CONF = None
 
-    cx = w / 2.0
-    cy = h / 2.0
-    fx = fy = 200.0
-
     X = (uu - cx) * Z / fx
     Y = (vv - cy) * Z / fy
 
@@ -50,11 +79,11 @@ def depth_to_pointcloud(depth: np.ndarray,
 
     mask = np.isfinite(pts[:, 2]) & (pts[:, 2] > 0.0)
     if CONF is not None:
-        conf_flat = CONF.reshape(-1)
-        mask &= (conf_flat > conf_threshold)
+        mask &= (CONF.reshape(-1) > conf_threshold)
 
     pts = pts[mask]
     return pts.astype(np.float32)
+
 
 
 def save_pointcloud_ply(filename: str, points: np.ndarray):

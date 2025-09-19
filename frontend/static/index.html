@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Pipeline Frontend</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+  <h2>Панель управления камерой</h2>
+
+  <button
+    hx-get="http://localhost:8001/process"
+    hx-target="#result"
+    hx-trigger="click">
+    Получить данные
+  </button>
+
+  <div id="result">
+    <p>Нажмите кнопку, чтобы получить preview.</p>
+  </div>
+
+  <script>
+    document.body.addEventListener("htmx:afterOnLoad", function(evt) {
+      try {
+        const data = JSON.parse(evt.detail.xhr.responseText);
+        const div = document.getElementById("result");
+        div.innerHTML = `
+          <h3>Depth preview</h3>
+          <img src="data:image/png;base64,${data.preview_b64}" style="max-width:400px"/>
+          <div>
+            <a href="http://localhost:8001${data.ply_download_url}" target="_blank">Скачать PLY</a>
+          </div>
+        `;
+      } catch (e) {
+        console.error("Ошибка парсинга JSON:", e);
+      }
+    });
+  </script>
+</body>
+</html>
