@@ -12,6 +12,10 @@ services:
       - ./.env
     volumes:
       - ./shared:/shared
+
+
+
+
   frontend:
     build:
       context: ./frontend
