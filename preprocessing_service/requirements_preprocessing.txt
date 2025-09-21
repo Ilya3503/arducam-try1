@@ -1,3 +1,5 @@
 numpy
 fastapi
+uvicorn
 python-dotenv
+open3d

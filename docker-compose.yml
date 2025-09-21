@@ -14,8 +14,6 @@ services:
       - ./shared:/shared
 
 
-
-
   frontend:
     build:
       context: ./frontend
@@ -23,5 +21,20 @@ services:
     restart: unless-stopped
     ports:
       - "8002:80"
+    depends_on:
+      - pipeline
+
+
+  preprocessing:
+    build:
+      context: ./preprocessing_service
+    container_name: preprocessing
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./.env
+    volumes:
+      - ./shared:/shared
     depends_on:
       - pipeline
