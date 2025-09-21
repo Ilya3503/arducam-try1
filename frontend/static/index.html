@@ -1,82 +1,67 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Панель управления</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/htmx.org@1.9.9"></script>
-  <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
-  <!-- Заголовок -->
   <header class="bg-white shadow-md p-4">
     <h1 class="text-2xl font-semibold text-gray-800">Панель управления</h1>
   </header>
 
-  <!-- Контент -->
   <main class="flex flex-1 p-6 space-x-6">
-    <!-- Фото блок -->
     <div id="photo-block"
          class="flex-1 bg-white border border-gray-300 shadow-sm flex items-center justify-center overflow-hidden">
       <p class="text-gray-400">Фото пока не загружено</p>
     </div>
 
-    <!-- Панель кнопок -->
     <div class="w-48 flex flex-col space-y-4">
-      <!-- Кнопка Запуск -->
-      <button
-        class="px-4 py-2 bg-blue-600 text-white font-medium rounded-xl shadow hover:bg-blue-700 transition"
-        hx-get="http://localhost:8001/process"
-        hx-trigger="click"
-        hx-ext="json-enc"
-        hx-on::after-request="handleProcessResponse(event)">
-        Запуск
-      </button>
-
-      <!-- Кнопка Очистить -->
-      <button
-        class="px-4 py-2 bg-gray-500 text-white font-medium rounded-xl shadow hover:bg-gray-600 transition"
-        onclick="document.getElementById('photo-block').innerHTML='<p class=&quot;text-gray-400&quot;>Фото пока не загружено</p>'; document.getElementById('download-btn').classList.add('hidden')">
-        Очистить
-      </button>
-
-      <!-- Кнопка Скачать файл -->
-      <a id="download-btn"
-         href="#"
-         class="hidden px-4 py-2 text-center bg-green-600 text-white font-medium rounded-xl shadow hover:bg-green-700 transition"
-         download>
-        Скачать файл
-      </a>
+      <button class="px-4 py-2 bg-blue-600 text-white rounded-xl" onclick="runProcess()">Запуск</button>
+      <button class="px-4 py-2 bg-gray-500 text-white rounded-xl" onclick="resetPhoto()">Очистить</button>
+      <a id="download-btn" href="#" class="hidden px-4 py-2 bg-green-600 text-white rounded-xl" download>Скачать файл</a>
     </div>
   </main>
 
-  <script>
-    // Обработка ответа от /process
-    function handleProcessResponse(evt) {
-      try {
-        const response = evt.detail.xhr.response;
-        const data = typeof response === "string" ? JSON.parse(response) : response;
+<script>
+  // --- API_BASE: автоматически берём хост из адресной строки браузера,
+  // --- и подставляем порт pipeline (8001). Это работает если pipeline
+  // --- слушает на хост-IP:8001 и порт проброшен через docker-compose.
+  const API_BASE = ${window.location.protocol}//${window.location.hostname}:8001;
 
-        if (data.status === "ok") {
-          // Показать фото
-          const img = <img src="data:image/png;base64,${data.preview_b64}" class="max-h-[500px] object-contain"/>;
-          document.getElementById('photo-block').innerHTML = img;
+  function resetPhoto() {
+    document.getElementById('photo-block').innerHTML =
+      '<p class="text-gray-400">Фото пока не загружено</p>';
+    document.getElementById('download-btn').classList.add('hidden');
+  }
 
-          // Обновить кнопку "Скачать"
-          const downloadBtn = document.getElementById('download-btn');
-          downloadBtn.href = http://localhost:8001${data.ply_download_url};
-          downloadBtn.classList.remove('hidden');
-        } else {
-          alert("Ошибка: сервер вернул некорректный статус");
-        }
-      } catch (e) {
-        console.error("Ошибка обработки ответа:", e);
-        alert("Не удалось обработать ответ сервера");
+  async function runProcess() {
+    const photoBlock = document.getElementById('photo-block');
+    const downloadBtn = document.getElementById('download-btn');
+
+    photoBlock.innerHTML = '<p class="text-gray-500">⏳ Загрузка...</p>';
+
+    try {
+      const response = await fetch(${API_BASE}/process);
+      if (!response.ok) throw new Error(Ошибка HTTP: ${response.status});
+
+      const data = await response.json();
+
+      if (data.status === "ok" && data.preview_b64) {
+        photoBlock.innerHTML = <img src="data:image/png;base64,${data.preview_b64}" class="max-h-[500px] object-contain"/>;
+        downloadBtn.href = ${API_BASE}${data.ply_download_url};
+        downloadBtn.classList.remove('hidden');
+      } else {
+        photoBlock.innerHTML = '<p class="text-red-500">Ошибка: неверный ответ от сервиса</p>';
       }
+    } catch (e) {
+      console.error("Ошибка обработки ответа:", e);
+      photoBlock.innerHTML = '<p class="text-red-500">Ошибка связи с сервером</p>';
     }
-  </script>
+  }
+</script>
 
 </body>
 </html>
