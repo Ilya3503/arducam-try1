@@ -29,7 +29,7 @@
   // --- API_BASE: автоматически берём хост из адресной строки браузера,
   // --- и подставляем порт pipeline (8001). Это работает если pipeline
   // --- слушает на хост-IP:8001 и порт проброшен через docker-compose.
-  const API_BASE = ${window.location.protocol}//${window.location.hostname}:8001;
+  const API_BASE = `${window.location.protocol}//${window.location.hostname}:8001`;
 
   function resetPhoto() {
     document.getElementById('photo-block').innerHTML =
@@ -44,14 +44,14 @@
     photoBlock.innerHTML = '<p class="text-gray-500">⏳ Загрузка...</p>';
 
     try {
-      const response = await fetch(${API_BASE}/process);
-      if (!response.ok) throw new Error(Ошибка HTTP: ${response.status});
+      const response = await fetch(`${API_BASE}/process`);
+      if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
 
       const data = await response.json();
 
       if (data.status === "ok" && data.preview_b64) {
-        photoBlock.innerHTML = <img src="data:image/png;base64,${data.preview_b64}" class="max-h-[500px] object-contain"/>;
-        downloadBtn.href = ${API_BASE}${data.ply_download_url};
+        photoBlock.innerHTML = `<img src="data:image/png;base64,${data.preview_b64}" class="max-h-[500px] object-contain"/>`;
+        downloadBtn.href = `${API_BASE}${data.ply_download_url}`;
         downloadBtn.classList.remove('hidden');
       } else {
         photoBlock.innerHTML = '<p class="text-red-500">Ошибка: неверный ответ от сервиса</p>';
