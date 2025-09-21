@@ -50,7 +50,7 @@
       const data = await response.json();
 
       if (data.status === "ok" && data.preview_b64) {
-        photoBlock.innerHTML = `<img src="data:image/png;base64,${data.preview_b64}" class="max-h-[500px] object-contain"/>`;
+        photoBlock.innerHTML = `<img src="data:image/png;base64,${data.preview_b64}" class="h-full object-contain"/>`;
         downloadBtn.href = `${API_BASE}${data.ply_download_url}`;
         downloadBtn.classList.remove('hidden');
       } else {
