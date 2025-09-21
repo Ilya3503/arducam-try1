@@ -65,7 +65,7 @@ def crop_roi(pcd: o3d.geometry.PointCloud,
     return pcd.crop(bbox)
 
 
-# ---------------- Pipeline ----------------
+
 def preprocess_point_cloud(input_path: str, output_path: str) -> str:
     pcd = load_point_cloud(input_path)
     pcd = voxel_downsample(pcd, voxel_size=0.005)
