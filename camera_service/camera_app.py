@@ -1,9 +1,16 @@
 from fastapi import FastAPI
-import camera  # твой camera.py
+import camera
 import numpy as np
 import os
 
-app = FastAPI()
+app = FastAPI(
+    title="Camera Service",
+    description="Сервис управления камерой",
+    openapi_tags = [
+        {"name": "Служебные эндпоинты"},
+        {"name": "Эндпоинты камеры", "description": "Команды управления камерой"},
+    ]
+)
 
 # Папка для сохранений рядом с этим файлом
 SAVE_DIR = os.path.join(os.path.dirname(__file__), "shared")
@@ -19,7 +26,7 @@ def get_camera():
     return cam
 
 
-@app.get("/capture")
+@app.get("/capture", tags=["Эндпоинты камеры"], summary="Захват изображения (создание depth map)")
 def capture():
     try:
         cam = get_camera()
@@ -41,3 +48,15 @@ def capture():
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+
+@app.get("/camera/info", tags=["Эндпоинты камеры"], summary="Получение информации о камере: разрешение, fx/fy/cx/cy")
+def get_camera_info_endpoint():
+    try:
+        cam = get_camera()
+        cam_info = camera.get_camera_info(cam)
+    except Exception as e:
+        return {"status": "Ошибка получения информации о камере", "message": str(e)}
+
+    return {"status": "Данные о камере получены успешно", "Camera Info": cam_info}

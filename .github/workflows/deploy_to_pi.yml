@@ -1,12 +1,42 @@
-name: deploy_to_pi
+name: Simple Deploy
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+    - name: Setup Tailscale
+      uses: tailscale/github-action@v2
+      with:
+        authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+        hostname: github-deployer
+
+    - name: Deploy to Pi
+      run: |
+        sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no deploy@${{ secrets.TAILSCALE_PI_IP }} "
+          set -e
+          
+          cd /home/mikhailplotitsin/try1/arducam_try1
+          
+          # Обновляем код
+          git pull origin main
+          
+          # Запускаем локальный сервис в фоне
+          cd camera_service
+          uvicorn camera_app:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+        
+          sleep 10
+          
+          # Возвращаемся в проект и пересобираем контейнеры
+          cd ..
+          docker compose build --no-cache
+          docker compose down
+          sleep 3
+          docker compose up -d
+          
+          echo 'Deployment completed!'
+        "
