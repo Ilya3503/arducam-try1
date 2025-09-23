@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SHARED_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shared"))
+SHARED_DIR = os.environ.get("SHARED_DIR")
 INPUT_FILE = os.path.join(SHARED_DIR, "last_pointcloud.ply")
 OUTPUT_FILE = os.path.join(SHARED_DIR, "last_preprocessed_pointcloud.ply")
 

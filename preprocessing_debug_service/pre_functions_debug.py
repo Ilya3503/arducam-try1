@@ -4,22 +4,31 @@ from pathlib import Path
 from typing import Optional
 
 
-def load_point_cloud(file_path: str) -> o3d.geometry.PointCloud:
+def load_point_cloud(file_path: str, scale_to_meters: bool = True) -> o3d.geometry.PointCloud:
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"Input file not found: {path}")
 
+    # Загружаем PLY
     if path.suffix.lower() == ".ply":
-        return o3d.io.read_point_cloud(str(path))
+        pcd = o3d.io.read_point_cloud(str(path))
 
-    if path.suffix.lower() == ".npy":
+    # Загружаем NPY
+    elif path.suffix.lower() == ".npy":
         arr = np.load(str(path))
         pts = arr[:, :3].astype(np.float64)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(pts)
-        return pcd
 
-    raise ValueError(f"Unsupported file extension: {path.suffix}")
+    else:
+        raise ValueError(f"Unsupported file extension: {path.suffix}")
+
+    # Перевод в метры (из мм в м)
+    if scale_to_meters:
+        pcd.scale(0.001, center=(0, 0, 0))
+
+    return pcd
+
 
 
 def save_point_cloud(pcd: o3d.geometry.PointCloud, file_path: str) -> str:
