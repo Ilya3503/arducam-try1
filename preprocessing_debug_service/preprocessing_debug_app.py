@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import open3d as o3d
 
-from pre_functions_debug import load_point_cloud, save_point_cloud, voxel_downsample
+from pre_functions_debug import load_point_cloud, save_point_cloud, voxel_downsample, remove_noise, remove_plane, crop_roi
 
 # -------------------- Настройки --------------------
 SHARED_DIR = Path(os.environ.get("SHARED_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "shared")))
