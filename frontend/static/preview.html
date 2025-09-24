@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title> Обработка облака точек</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-7xl p-6 bg-white shadow-2xl rounded-2xl grid grid-cols-2 gap-6">
+
+    <!-- Левая половина: Информация + сюда будут попадать изображения -->
+    <div class="col-span-1 flex flex-col">
+      <div class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-lg text-white flex flex-col">
+        <h2 class="text-2xl font-semibold mb-4">📄 Информация и изображения</h2>
+        <div id="info-block"
+             class="flex-1 p-4 bg-white/20 rounded-lg text-sm whitespace-pre-wrap overflow-auto">
+          Здесь появится изображение...
+        </div>
+      </div>
+    </div>
+
+    <!-- Правая половина -->
+    <div class="col-span-1 flex flex-col space-y-6">
+
+        <!-- Кнопки перехода -->
+<div class="w-full max-w-7xl mx-auto flex justify-end gap-2 mb-4">
+  <a href="index.html"
+     class="py-1 px-3 bg-blue-500 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-600 transition">
+    New1
+  </a>
+  <a href="info.html"
+     class="py-1 px-3 bg-green-500 text-white text-sm font-medium rounded-lg shadow hover:bg-green-600 transition">
+    Info
+  </a>
+</div>
+
+      <!-- Превью (справа сверху) -->
+      <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white">
+        <h2 class="text-xl font-semibold mb-4">📷 Превью (до обработки)</h2>
+        <form id="preview-form" class="space-y-4">
+          <label class="block">
+            <span class="font-semibold">Проекция:</span>
+            <select id="preview-projection" class="w-full mt-1 p-2 rounded-xl text-gray-700">
+              <option value="xy">XY</option>
+              <option value="xz">XZ</option>
+              <option value="yz">YZ</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            class="w-full py-2 px-4 bg-white text-green-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
+            onclick="loadPreview()">
+            Получить превью
+          </button>
+        </form>
+      </div>
+
+      <!-- Препроцессинг (справа снизу) -->
+      <div class="flex-1 bg-gradient-to-r from-purple-500 to-pink-600 p-6 rounded-2xl shadow-lg text-white flex flex-col">
+        <h2 class="text-2xl font-semibold mb-4">⚙️ Препроцессинг</h2>
+        <form id="preprocess-form" class="space-y-4 flex-1 flex flex-col">
+          <label class="block">
+            <span class="font-semibold">Размер вокселя:</span>
+            <input type="number" id="voxel-size" value="0.01" step="0.01" class="w-full mt-1 p-2 rounded-xl text-gray-700" />
+          </label>
+          <label class="block">
+            <span class="font-semibold">Проекция:</span>
+            <select id="process-projection" class="w-full mt-1 p-2 rounded-xl text-gray-700">
+              <option value="xy">XY</option>
+              <option value="xz">XZ</option>
+              <option value="yz">YZ</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            class="mt-auto w-full py-2 px-4 bg-white text-purple-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
+            onclick="runPreprocess()">
+            Запустить препроцессинг
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+ <script>
+  // --- Динамические базовые URL для API
+  const API_BASE_8003 = ${window.location.protocol}//${window.location.hostname}:8003;// Загрузка превью -> вставка в левый блок
+  async function loadPreview() {
+    const projection = document.getElementById("preview-projection").value;
+    try {
+      const res = await fetch(${API_BASE_8003}/preview_before_preprocess?projection=${projection});
+      const data = await res.json();
+      document.getElementById("info-block").innerHTML =
+        `<p class="mb-2">[Превью] Файл: <b>${data.file}</b>, проекция: <b>${data.projection}</b></p>
+         <img src="data:image/png;base64,${data.preview_base64}" alt="preview" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
+    } catch (err) {
+      document.getElementById("info-block").innerHTML =
+        <span class="text-red-300">Ошибка: ${err}</span>;
+    }
+  }
+
+  // Препроцессинг -> вставка в левый блок
+  async function runPreprocess() {
+    const voxelSize = document.getElementById("voxel-size").value;
+    const projection = document.getElementById("process-projection").value;
+    try {
+      const res = await fetch(${API_BASE_8003}/preprocess?voxel_size=${voxelSize}&projection=${projection}, {
+        method: "POST"
+      });
+      const data = await res.json();
+      document.getElementById("info-block").innerHTML =
+        `<p class="mb-2">[Препроцессинг] Файл: <b>${data.file}</b><br/> Воксель: <b>${data.voxel_size}</b><br/>Проекция: <b>${data.projection}</b></p>
+         <img src="data:image/png;base64,${data.preview_base64}" alt="processed" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
+    } catch (err) {
+      document.getElementById("info-block").innerHTML =
+        <span class="text-red-300">Ошибка: ${err}</span>;
+    }
+  }
+</script>
+
+</body>
+</html>

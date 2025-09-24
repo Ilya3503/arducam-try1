@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title> Панель управления камерой</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+
+
+
+  <div class="w-full max-w-5xl p-8 bg-white shadow-2xl rounded-2xl space-y-10">
+
+
+    <!-- Кнопки перехода вверху страницы -->
+<div class="flex justify-end gap-2 mb-4">
+  <a href="index.html"
+     class="py-1 px-3 bg-blue-500 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-600 transition">
+    New1
+  </a>
+  <a href="preview.html"
+     class="py-1 px-3 bg-green-500 text-white text-sm font-medium rounded-lg shadow hover:bg-green-600 transition">
+    Preview
+  </a>
+</div>
+
+
+    <h1 class="text-3xl font-bold text-gray-800 text-center">📡 Панель управления камерой</h1>
+    <p class="text-gray-600 text-center">Запрашивайте информацию от бэкенда одним кликом</p>
+
+    <!-- Блок 1: Информация о камере -->
+    <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-lg text-white">
+      <h2 class="text-2xl font-semibold mb-4">Информация о камере</h2>
+      <form class="space-y-4">
+        <div id="camera-info"
+             class="p-4 bg-white/20 rounded-lg text-sm whitespace-pre-wrap">
+          Здесь появится информация о камере...
+        </div>
+        <button
+          type="button"
+          class="w-full py-2 px-4 bg-white text-blue-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
+          onclick="fetchAndRender('http://localhost:8001/camera/info', 'camera-info')">
+          Получить информацию
+        </button>
+      </form>
+    </div>
+
+    <!-- Блок 2: Список файлов -->
+    <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white">
+      <h2 class="text-2xl font-semibold mb-4">📂 Список файлов</h2>
+      <form class="space-y-4">
+        <div id="files-list"
+             class="p-4 bg-white/20 rounded-lg text-sm whitespace-pre-wrap">
+          Здесь появится список файлов...
+        </div>
+        <button
+          type="button"
+          class="w-full py-2 px-4 bg-white text-green-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
+          onclick="fetchAndRender('http://localhost:8001/files', 'files-list')">
+          Получить список файлов
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+<script>
+  // --- Динамический базовый URL для API на порту 8001
+  const API_BASE_8001 = ${window.location.protocol}//${window.location.hostname}:8001;
+
+  // функция форматирования JSON в красивый список
+  function renderJSON(data) {
+    if (typeof data !== "object") return data;
+
+    let html = '<ul class="space-y-1">';
+    for (const key in data) {
+      if (Array.isArray(data[key])) {
+        html += <li><span class="font-semibold">${key}:</span> <ul class="list-disc list-inside ml-4">;
+        data[key].forEach(item => {
+          html += <li>${item}</li>;
+        });
+        html += '</ul></li>';
+      } else if (typeof data[key] === "object") {
+        html += <li><span class="font-semibold">${key}:</span> ${renderJSON(data[key])}</li>;
+      } else {
+        html += <li><span class="font-semibold">${key}:</span> ${data[key]}</li>;
+      }
+    }
+    html += "</ul>";
+    return html;
+  }
+
+  // запрос и рендеринг
+  async function fetchAndRender(endpoint, targetId) {
+    try {
+      const url = ${API_BASE_8001}${endpoint};
+      const response = await fetch(url);
+      const data = await response.json();
+      document.getElementById(targetId).innerHTML = renderJSON(data);
+    } catch (err) {
+      document.getElementById(targetId).innerHTML = <span class="text-red-300">Ошибка: ${err}</span>;
+    }
+  }
+</script>
+
+</body>
+</html>
