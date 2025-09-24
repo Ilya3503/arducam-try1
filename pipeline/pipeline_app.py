@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SHARED_DIR = os.environ.get("SHARED_DIR")
-CAMERA_URL = os.environ.get("CAMERA_URL", "http://127.0.0.1:8000/capture")
+CAMERA_URL = os.environ.get("CAMERA_URL")
+CAMERA_URL_INFO = os.environ.get("CAMERA_URL_INFO")
 
 app = FastAPI(
     title="Pipeline Service",
@@ -77,6 +78,30 @@ async def process():
         "preview_b64": preview_b64,
         "ply_download_url": f"/download_ply?name={ply_file}",
     }
+
+
+
+@app.get("/camera/info", tags=["Эндпоинты обработки"], summary="Получение информации о камере")
+async def get_camera_info_endpoint_pipeline():
+    try:
+        r = requests.get(CAMERA_URL_INFO, timeout=10)
+        r.raise_for_status()
+        camera_info = r.json()
+    except Exception as e:
+        return {"status": "Ошибка получения информации о камере", "message": str(e)}
+
+    return {"status": "", "info": camera_info}
+
+
+
+
+@app.get("/files")
+async def get_files_list():
+    files = os.listdir(SHARED_DIR)
+    if not files:
+        return {"status": "Папка успешно прочитана", "message": "Файлов нет"}
+    return {"status": "Папка успешно прочитана", "Список файлов": files}
+
 
 
 
