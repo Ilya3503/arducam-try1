@@ -2,13 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements_preprocessing.txt .
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libegl1 \
+    libgl1 \
     libgomp1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-
+COPY requirements_preprocessing.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements_preprocessing.txt
 
