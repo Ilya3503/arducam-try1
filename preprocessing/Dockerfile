@@ -1,23 +1,16 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     libgl1 \
     libegl1 \
     libgomp1 \
     libx11-6 \
-    libxxf86vm1 \
-    libxext6 \
-    libxrandr2 \
-    libxcb1 \
     libosmesa6-dev \
     libglib2.0-0 \
     libpng-dev \
     && rm -rf /var/lib/apt/lists/*
 
-
 WORKDIR /app
-
-ENV OPEN3D_CPU_RENDERING=true
 
 
 COPY requirements_preprocessing.txt .

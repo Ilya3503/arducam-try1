@@ -2,9 +2,6 @@ import os
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
-
-os.environ["OPEN3D_CPU_RENDERING"] = "true"
-
 import open3d as o3d
 import base64
 
@@ -56,20 +53,18 @@ async def get_preview_before_preprocessing():
         pcd = o3d.io.read_point_cloud(str(INPUT_FILE))
 
         width, height = 800, 600
-        try:
-            render = o3d.visualization.rendering.OffscreenRenderer(width, height)
-            mat = o3d.visualization.rendering.MaterialRecord()
-            mat.shader = "defaultUnlit"
-            render.scene.add_geometry("pcd", pcd, mat)
-            render.setup_camera(60.0, pcd.get_axis_aligned_bounding_box(), pcd.get_center())
+        render = o3d.visualization.rendering.OffscreenRenderer(width, height)
 
-            img_o3d = render.render_to_image()
-            o3d.io.write_image(str(PREVIEW_BEFORE_PRE_FILE), img_o3d)
+        mat = o3d.visualization.rendering.MaterialRecord()
+        mat.shader = "defaultUnlit"
+        render.scene.add_geometry("pcd", pcd, mat)
+        render.setup_camera(60.0, pcd.get_axis_aligned_bounding_box(), pcd.get_center())
 
-            with open(PREVIEW_BEFORE_PRE_FILE, "rb") as f:
-                img_base64 = base64.b64encode(f.read()).decode("utf-8")
-        finally:
-            render.release()
+        img_o3d = render.render_to_image()
+        o3d.io.write_image(str(PREVIEW_BEFORE_PRE_FILE), img_o3d)
+
+        with open(PREVIEW_BEFORE_PRE_FILE, "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode("utf-8")
 
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Ошибка препроцессинга данных: {exc}")
@@ -83,32 +78,30 @@ async def get_preview_before_preprocessing():
 
 
 # ------------------ Main Preprocess ------------------
-@app.get("/preprocess", tags=["Эндпоинты обработки"], summary="Препроцессинг с PNG-превью")
+@app.post("/preprocess", tags=["Эндпоинты обработки"], summary="Препроцессинг с PNG-превью (offscreen)")
 def preprocess():
     if not INPUT_FILE.exists():
         raise HTTPException(status_code=404, detail=f"Файл не найден: {INPUT_FILE}")
 
     try:
-        # Выполняем только вокселизацию
         preprocess_point_cloud(str(INPUT_FILE), str(OUTPUT_FILE))
 
         pcd = o3d.io.read_point_cloud(str(OUTPUT_FILE))
 
         width, height = 800, 600
         render = o3d.visualization.rendering.OffscreenRenderer(width, height)
-        try:
-            mat = o3d.visualization.rendering.MaterialRecord()
-            mat.shader = "defaultUnlit"
-            render.scene.add_geometry("pcd", pcd, mat)
-            render.setup_camera(60.0, pcd.get_axis_aligned_bounding_box(), pcd.get_center())
 
-            img_o3d = render.render_to_image()
-            o3d.io.write_image(str(PREVIEW_FILE), img_o3d)
+        mat = o3d.visualization.rendering.MaterialRecord()
+        mat.shader = "defaultUnlit"
+        render.scene.add_geometry("pcd", pcd, mat)
+        render.setup_camera(60.0, pcd.get_axis_aligned_bounding_box(), pcd.get_center())
 
-            with open(PREVIEW_FILE, "rb") as f:
-                img_base64 = base64.b64encode(f.read()).decode("utf-8")
-        finally:
-            render.release()  # Освобождаем ресурсы
+        img_o3d = render.render_to_image()
+        o3d.io.write_image(str(PREVIEW_FILE), img_o3d)
+
+        with open(PREVIEW_FILE, "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode("utf-8")
+
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Ошибка препроцессинга данных: {exc}")
 
