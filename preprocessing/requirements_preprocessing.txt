@@ -4,3 +4,5 @@ python-dotenv
 numpy
 open3d==0.18.0
 pydantic
+pillow
+scipy
