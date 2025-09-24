@@ -25,13 +25,30 @@ def get_camera():
         cam = camera.init_camera()
     return cam
 
+def get_camera_intrinsics(cam=None):
+    # Пока захардкожены параметры под твою камеру
+    return {
+        "width": 240,
+        "height": 180,
+        "fx": 200.0,
+        "fy": 200.0,
+        "cx": 240 / 2.0,
+        "cy": 180 / 2.0
+    }
+
 
 @app.get("/capture", tags=["Эндпоинты камеры"], summary="Захват изображения (создание depth map)")
 def capture():
     try:
         cam = get_camera()
         depth, amp = camera.capture_frame(cam, timeout_ms=500)
-        points = camera.depth_to_pointcloud(depth, confidence=amp, conf_threshold=30.0)
+        intrinsics = get_camera_intrinsics(cam)
+        points = camera.depth_to_pointcloud(
+            depth,
+            intrinsics=intrinsics,
+            confidence=amp,
+            conf_threshold=30.0
+        )
 
         ply_file = os.path.join(SAVE_DIR, "last_pointcloud.ply")
         npy_file = os.path.join(SAVE_DIR, "last_depth.npy")
