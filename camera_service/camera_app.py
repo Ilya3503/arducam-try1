@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import camera
-import numpy as np
 import os
+from pathlib import Path
 
 app = FastAPI(
     title="Camera Service",
@@ -12,11 +12,9 @@ app = FastAPI(
     ]
 )
 
-# Папка для сохранений рядом с этим файлом
-SAVE_DIR = os.path.join(os.path.dirname(__file__), "shared")
-os.makedirs(SAVE_DIR, exist_ok=True)
 
-# Камеру инициализируем лениво
+SHARED_DIR = Path(__file__).parent.parent / "shared"
+
 cam = None
 
 def get_camera():
@@ -26,7 +24,7 @@ def get_camera():
     return cam
 
 def get_camera_intrinsics(cam=None):
-    # Пока захардкожены параметры под твою камеру
+
     return {
         "width": 240,
         "height": 180,
@@ -50,11 +48,11 @@ def capture():
             conf_threshold=30.0
         )
 
-        ply_file = os.path.join(SAVE_DIR, "last_pointcloud.ply")
-        npy_file = os.path.join(SAVE_DIR, "last_depth.npy")
+        ply_file = SHARED_DIR / "last_pointcloud.ply"
+        npy_file = SHARED_DIR / "last_depth.npy"
 
-        camera.save_pointcloud_ply(ply_file, points)
-        camera.save_depth_npy(npy_file, depth)
+        camera.save_pointcloud_ply(str(ply_file), points)
+        camera.save_depth_npy(str(npy_file), depth)
 
         return {
             "status": "ok",
