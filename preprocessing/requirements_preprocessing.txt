@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+numpy
+open3d==0.17.0
+pydantic
