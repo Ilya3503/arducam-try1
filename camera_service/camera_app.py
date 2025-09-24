@@ -13,7 +13,9 @@ app = FastAPI(
 )
 
 
-SHARED_DIR = Path(__file__).parent.parent / "shared"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SHARED_DIR = PROJECT_ROOT / "shared"
+os.makedirs(SHARED_DIR, exist_ok=True)
 
 cam = None
 
