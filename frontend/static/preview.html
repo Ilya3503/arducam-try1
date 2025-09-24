@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title> Обработка облака точек</title>
+  <title>Обработка облака точек</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -24,17 +24,17 @@
     <!-- Правая половина -->
     <div class="col-span-1 flex flex-col space-y-6">
 
-        <!-- Кнопки перехода -->
-<div class="w-full max-w-7xl mx-auto flex justify-end gap-2 mb-4">
-  <a href="index.html"
-     class="py-1 px-3 bg-blue-500 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-600 transition">
-    New1
-  </a>
-  <a href="info.html"
-     class="py-1 px-3 bg-green-500 text-white text-sm font-medium rounded-lg shadow hover:bg-green-600 transition">
-    Info
-  </a>
-</div>
+      <!-- Кнопки перехода -->
+      <div class="w-full flex justify-end gap-2">
+        <a href="index.html"
+           class="py-1 px-3 bg-blue-500 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-600 transition">
+          New1
+        </a>
+        <a href="info.html"
+           class="py-1 px-3 bg-green-500 text-white text-sm font-medium rounded-lg shadow hover:bg-green-600 transition">
+          Info
+        </a>
+      </div>
 
       <!-- Превью (справа сверху) -->
       <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white">
@@ -84,41 +84,61 @@
     </div>
   </div>
 
- <script>
-  // --- Динамические базовые URL для API
-  const API_BASE_8003 = ${window.location.protocol}//${window.location.hostname}:8003;// Загрузка превью -> вставка в левый блок
-  async function loadPreview() {
-    const projection = document.getElementById("preview-projection").value;
-    try {
-      const res = await fetch(${API_BASE_8003}/preview_before_preprocess?projection=${projection});
-      const data = await res.json();
-      document.getElementById("info-block").innerHTML =
-        `<p class="mb-2">[Превью] Файл: <b>${data.file}</b>, проекция: <b>${data.projection}</b></p>
-         <img src="data:image/png;base64,${data.preview_base64}" alt="preview" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
-    } catch (err) {
-      document.getElementById("info-block").innerHTML =
-        <span class="text-red-300">Ошибка: ${err}</span>;
-    }
-  }
+  <script>
+    // --- Динамические базовые URL для API
+    const API_BASE_8003 = `${window.location.protocol}//${window.location.hostname}:8003`;
 
-  // Препроцессинг -> вставка в левый блок
-  async function runPreprocess() {
-    const voxelSize = document.getElementById("voxel-size").value;
-    const projection = document.getElementById("process-projection").value;
-    try {
-      const res = await fetch(${API_BASE_8003}/preprocess?voxel_size=${voxelSize}&projection=${projection}, {
-        method: "POST"
-      });
-      const data = await res.json();
-      document.getElementById("info-block").innerHTML =
-        `<p class="mb-2">[Препроцессинг] Файл: <b>${data.file}</b><br/> Воксель: <b>${data.voxel_size}</b><br/>Проекция: <b>${data.projection}</b></p>
-         <img src="data:image/png;base64,${data.preview_base64}" alt="processed" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
-    } catch (err) {
-      document.getElementById("info-block").innerHTML =
-        <span class="text-red-300">Ошибка: ${err}</span>;
+    // Загрузка превью -> вставка в левый блок
+    async function loadPreview() {
+      const projection = document.getElementById("preview-projection").value;
+      try {
+        console.log('Запрос превью с проекцией:', projection);
+        const url = `${API_BASE_8003}/preview_before_preprocess?projection=${projection}`;
+        console.log('URL:', url);
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+
+        const data = await res.json();
+        console.log('Получены данные:', data);
+
+        document.getElementById("info-block").innerHTML =
+          `<p class="mb-2">[Превью] Файл: <b>${data.file}</b>, проекция: <b>${data.projection}</b></p>
+           <img src="data:image/png;base64,${data.preview_base64}" alt="preview" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
+      } catch (err) {
+        console.error('Ошибка загрузки превью:', err);
+        document.getElementById("info-block").innerHTML =
+          `<span class="text-red-300">Ошибка: ${err.message}</span>`;
+      }
     }
-  }
-</script>
+
+    // Препроцессинг -> вставка в левый блок
+    async function runPreprocess() {
+      const voxelSize = document.getElementById("voxel-size").value;
+      const projection = document.getElementById("process-projection").value;
+      try {
+        console.log('Запрос препроцессинга:', { voxelSize, projection });
+        const url = `${API_BASE_8003}/preprocess?voxel_size=${voxelSize}&projection=${projection}`;
+        console.log('URL:', url);
+
+        const res = await fetch(url, {
+          method: "POST"
+        });
+        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+
+        const data = await res.json();
+        console.log('Результат препроцессинга:', data);
+
+        document.getElementById("info-block").innerHTML =
+          `<p class="mb-2">[Препроцессинг] Файл: <b>${data.file}</b><br/> Воксель: <b>${data.voxel_size}</b><br/>Проекция: <b>${data.projection}</b></p>
+           <img src="data:image/png;base64,${data.preview_base64}" alt="processed" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
+      } catch (err) {
+        console.error('Ошибка препроцессинга:', err);
+        document.getElementById("info-block").innerHTML =
+          `<span class="text-red-300">Ошибка: ${err.message}</span>`;
+      }
+    }
+  </script>
 
 </body>
 </html>
