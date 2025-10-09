@@ -30,6 +30,28 @@ def load_point_cloud(file_path: str, scale_to_meters: bool = True) -> o3d.geomet
     return pcd
 
 
+def load_point_cloud_noresize(file_path: str) -> o3d.geometry.PointCloud:
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Input file not found: {path}")
+
+    # Загружаем PLY
+    if path.suffix.lower() == ".ply":
+        pcd = o3d.io.read_point_cloud(str(path))
+
+    # Загружаем NPY
+    elif path.suffix.lower() == ".npy":
+        arr = np.load(str(path))
+        pts = arr[:, :3].astype(np.float64)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(pts)
+
+    else:
+        raise ValueError(f"Unsupported file extension: {path.suffix}")
+
+    return pcd
+
+
 
 def save_point_cloud(pcd: o3d.geometry.PointCloud, file_path: str) -> str:
     path = Path(file_path)

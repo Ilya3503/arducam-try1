@@ -3,10 +3,12 @@ from pathlib import Path
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+import numpy as np
 
 import open3d as o3d
 
-from pre_functions_debug import load_point_cloud, save_point_cloud, voxel_downsample, remove_noise, remove_plane, crop_roi
+from pre_functions_debug import load_point_cloud_noresize, save_point_cloud, voxel_downsample, remove_noise, remove_plane, crop_roi, load_point_cloud
+
 
 # -------------------- Настройки --------------------
 SHARED_DIR = Path(os.environ.get("SHARED_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "shared")))
@@ -39,7 +41,6 @@ def list_files():
     files = [f.name for f in SHARED_DIR.iterdir() if f.suffix.lower() in [".ply", ".npy"]]
     return {"files": files}
 
-
 # -------------------- Обработка: Voxel Downsample --------------------
 @app.post("/preprocess/voxel_downsample", tags=["Эндпоинты обработки"], summary="Вокселизация Point Cloud")
 def preprocess_voxel_downsample(
@@ -52,7 +53,7 @@ def preprocess_voxel_downsample(
 
     try:
         # Загружаем
-        pcd = load_point_cloud(str(input_path))
+        pcd = load_point_cloud_noresize(str(input_path))
         # Обрабатываем
         pcd_down = voxel_downsample(pcd, voxel_size=voxel_size)
 
@@ -93,7 +94,7 @@ def preprocess_remove_noise(
         raise HTTPException(status_code=404, detail=f"Файл {filename} не найден в shared/")
 
     try:
-        pcd = load_point_cloud(str(input_path))
+        pcd = load_point_cloud_noresize(str(input_path))
         pcd_clean = remove_noise(pcd, nb_neighbors=nb_neighbors, std_ratio=std_ratio)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -130,12 +131,12 @@ def preprocess_remove_plane(
         raise HTTPException(status_code=404, detail=f"Файл {filename} не найден в shared/")
 
     try:
-        pcd = load_point_cloud(str(input_path))
+        pcd = load_point_cloud_noresize(str(input_path))
         pcd_no_plane = remove_plane(pcd, distance_threshold=distance_threshold,
                                     ransac_n=ransac_n, num_iterations=num_iterations)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_name = f"{timestamp}_plane_removed_{distance_threshold:.3f}.ply"
+        out_name = f"{timestamp}_plane_removed_{distance_threshold:.6f}.ply"
         out_path = PROCESSED_DIR / out_name
         save_point_cloud(pcd_no_plane, str(out_path))
 
@@ -171,7 +172,7 @@ def preprocess_crop_roi(
         raise HTTPException(status_code=404, detail=f"Файл {filename} не найден в shared/")
 
     try:
-        pcd = load_point_cloud(str(input_path))
+        pcd = load_point_cloud_noresize(str(input_path))
         pcd_cropped = crop_roi(pcd, min_bound=(min_x, min_y, min_z), max_bound=(max_x, max_y, max_z))
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -193,3 +194,100 @@ def preprocess_crop_roi(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+# -------------------- Просмотр Point Cloud --------------------
+@app.post("/preprocess/view_cloud", tags=["Эндпоинты обработки"], summary="Просмотр облака точек")
+def preprocess_view_cloud(
+    filename: str = Query(..., description="Имя входного файла из /files"),
+    show_axes: bool = Query(False, description="Показать оси координат"),
+    divisions: int = Query(10, description="Количество делений на каждой оси")
+):
+    input_path = SHARED_DIR / filename
+    if not input_path.exists():
+        raise HTTPException(status_code=404, detail=f"Файл {filename} не найден в shared/")
+
+    try:
+        pcd = load_point_cloud_noresize(str(input_path))
+        geometries = [pcd]
+
+        if show_axes:
+            # Диапазоны облака точек
+            min_bound = pcd.get_min_bound()
+            max_bound = pcd.get_max_bound()
+            center = (min_bound + max_bound) / 2
+            ranges = max_bound - min_bound
+
+
+        try:
+            o3d.visualization.draw_geometries(geometries)
+        except Exception as vis_err:
+            print(f"Визуализация недоступна: {vis_err}")
+
+        return {
+            "status": "ok",
+            "input_file": filename,
+            "points": len(pcd.points),
+            "show_axes": show_axes,
+            "divisions": divisions
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+@app.post("/preprocess/analyze_cloud", tags=["Эндпоинты обработки"], summary="Анализ и визуализация облака точек")
+def preprocess_analyze_cloud(
+    filename: str = Query(..., description="Имя входного файла из /shared")
+):
+    """
+    Анализирует облако точек: считает количество точек, диапазон по осям,
+    центр и визуализирует облако с координатной осью.
+    """
+    input_path = SHARED_DIR / filename
+    if not input_path.exists():
+        raise HTTPException(status_code=404, detail=f"Файл {filename} не найден в shared/")
+
+    try:
+        # Загрузка облака
+        pcd = load_point_cloud_noresize(str(input_path))
+        first_5_points = np.asarray(pcd.points[:5])
+
+        # Преобразование в numpy для анализа
+        points_count = len(pcd.points)
+        min_bound = pcd.get_min_bound()
+        max_bound = pcd.get_max_bound()
+        bbox = pcd.get_axis_aligned_bounding_box()
+        center = bbox.get_center()
+        extent = bbox.get_extent()
+
+        # Создание координатной системы (размер оси подбирается автоматически)
+        axis_size = max(extent) * 0.1 if np.all(extent > 0) else 0.05
+        axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=axis_size, origin=center)
+
+        # Визуализация
+        try:
+            o3d.visualization.draw_geometries([pcd, axis])
+        except Exception as vis_err:
+            print(f"Визуализация недоступна: {vis_err}")
+
+        return {
+            "status": "ok",
+            "first 5 points": first_5_points.tolist(),
+            "input_file": filename,
+            "points_total": points_count,
+            "min_bound": min_bound.tolist(),
+            "max_bound": max_bound.tolist(),
+            "center": center.tolist(),
+            "extent": extent.tolist(),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
