@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import camera
 import os
 from pathlib import Path
+from datetime import datetime
 
 app = FastAPI(
     title="Camera Service",
@@ -11,6 +12,12 @@ app = FastAPI(
         {"name": "Эндпоинты камеры", "description": "Команды управления камерой"},
     ]
 )
+
+
+def make_timestamp() -> str:
+    now = datetime.now()
+    return now.strftime("%Y%m%d_%H%M%S")
+
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -50,8 +57,12 @@ def capture():
             conf_threshold=30.0
         )
 
-        ply_file = SHARED_DIR / "last_pointcloud.ply"
-        npy_file = SHARED_DIR / "last_depth.npy"
+        timestamp = make_timestamp()
+        CAPTURE_DIR = SHARED_DIR / timestamp
+        CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+
+        ply_file = CAPTURE_DIR / f"{timestamp}_pointcloud.ply"
+        npy_file = CAPTURE_DIR / f"{timestamp}_depth.npy"
 
         camera.save_pointcloud_ply(str(ply_file), points)
         camera.save_depth_npy(str(npy_file), depth)

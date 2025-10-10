@@ -9,4 +9,4 @@ RUN pip install --upgrade pip && \
 
 COPY . .
 
-CMD ["uvicorn", "pipeline_app:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "pipeline_app:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]

@@ -20,4 +20,4 @@ RUN pip install --upgrade pip && \
 # Копируем код
 COPY . .
 
-CMD ["uvicorn", "preprocessing_app:app", "--host", "0.0.0.0", "--port", "8003"]
+CMD ["uvicorn", "preprocessing_app:app", "--host", "0.0.0.0", "--port", "8003", "--reload"]
