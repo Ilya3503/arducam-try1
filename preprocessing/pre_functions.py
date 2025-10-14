@@ -67,8 +67,5 @@ def crop_roi(pcd: o3d.geometry.PointCloud,
 def preprocess_point_cloud(input_path: str, output_path: str) -> str:
     pcd = load_point_cloud(input_path)
     pcd = voxel_downsample(pcd, voxel_size=8)
-    pcd = remove_noise(pcd, nb_neighbors=20, std_ratio=2.0)
-    pcd = remove_plane(pcd, distance_threshold=1, ransac_n=3, num_iterations=1000)
-    pcd = crop_roi(pcd, min_bound=(-150, -150, 400), max_bound=(150, 150, 600))
     save_point_cloud(pcd, output_path)
     return output_path
