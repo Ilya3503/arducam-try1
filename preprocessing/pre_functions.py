@@ -73,6 +73,31 @@ def safe_crop(pcd: o3d.geometry.PointCloud,
     return pcd.crop(bbox)
 
 
+def crop_points_numpy(pcd: o3d.geometry.PointCloud,
+                      min_bound: Optional[tuple] = None,
+                      max_bound: Optional[tuple] = None) -> o3d.geometry.PointCloud:
+
+    if min_bound is None or max_bound is None:
+        return pcd
+
+
+    pcd = clean_point_cloud(pcd)
+    pts = np.asarray(pcd.points)
+    if pts.size == 0:
+        return o3d.geometry.PointCloud()
+
+    mask = (
+        (pts[:, 0] >= min_bound[0]) & (pts[:, 0] <= max_bound[0]) &
+        (pts[:, 1] >= min_bound[1]) & (pts[:, 1] <= max_bound[1]) &
+        (pts[:, 2] >= min_bound[2]) & (pts[:, 2] <= max_bound[2])
+    )
+
+    cropped = o3d.geometry.PointCloud()
+    cropped.points = o3d.utility.Vector3dVector(pts[mask])
+
+    return cropped
+
+
 
 
 def crop_roi(pcd: o3d.geometry.PointCloud,
@@ -90,6 +115,6 @@ def preprocess_point_cloud(input_path: str, output_path: str) -> str:
     pcd = voxel_downsample(pcd, voxel_size=8)
     pcd = remove_noise(pcd, nb_neighbors=20, std_ratio=2.0)
     pcd = remove_plane(pcd, distance_threshold=70, ransac_n=3, num_iterations=1000)
-    pcd = safe_crop(pcd, min_bound=(-231, -190, 474), max_bound=(264, 190, 670))
+    pcd = crop_points_numpy(pcd, min_bound=(-231, -190, 474), max_bound=(264, 190, 670))
     save_point_cloud(pcd, output_path)
     return output_path
