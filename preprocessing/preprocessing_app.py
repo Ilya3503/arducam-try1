@@ -7,7 +7,10 @@ import base64
 import io
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 import numpy as np
 
 from pre_functions import preprocess_point_cloud
