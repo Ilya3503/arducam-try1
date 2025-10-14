@@ -156,6 +156,7 @@ def preprocess(
 ):
     try:
         input_file, output_file = get_input_file(use_latest, folder, filename)
+        print(str(input_file), str(output_file))
 
         preprocess_point_cloud(str(input_file), str(output_file))
 
