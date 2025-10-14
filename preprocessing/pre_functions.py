@@ -69,6 +69,5 @@ def preprocess_point_cloud(input_path: str, output_path: str) -> str:
     pcd = voxel_downsample(pcd, voxel_size=8)
     pcd = remove_noise(pcd, nb_neighbors=20, std_ratio=2.0)
     pcd = remove_plane(pcd, distance_threshold=70, ransac_n=3, num_iterations=1000)
-    pcd = crop_roi(pcd, min_bound=(-231, -190, 474), max_bound=(264, 190, 670))
     save_point_cloud(pcd, output_path)
     return output_path
