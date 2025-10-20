@@ -182,10 +182,6 @@ def get_obb_for_cluster(cluster: o3d.geometry.PointCloud) -> Dict:
 
 
 def create_and_save_annotated_pointcloud(pcd: o3d.geometry.PointCloud, clusters: List[o3d.geometry.PointCloud], results_dir: str) -> str:
-    """
-    Сохраняет объединённое облако точек, где каждый кластер имеет свой цвет.
-    Файл сохраняется в results_dir как annotated_pointcloud.ply.
-    """
     results_path = Path(results_dir)
     out_path = results_path / "annotated_pointcloud.ply"
 
@@ -246,8 +242,11 @@ def process_position(input_file: str,
                      results_dir: str,
                      eps: float = 0.03,
                      min_points: int = 20) -> dict:
-
     input_file = Path(input_file)
+    print(f"[process_position] Получен input_file={input_file}, results_dir={results_dir}")
+    if not Path(input_file).exists():
+        raise FileNotFoundError(f"[process_position] Файл не найден: {input_file}")
+
     results_dir = Path(results_dir)
     results_dir = ensure_results_dir(results_dir)
     clusters_dir = results_dir / "clusters"
