@@ -114,7 +114,7 @@ def crop_roi(pcd: o3d.geometry.PointCloud,
 
 
 
-def cluster_dbscan(pcd: o3d.geometry.PointCloud, eps: float = 0.03, min_points: int = 20) -> List[o3d.geometry.PointCloud]:
+def cluster_dbscan(pcd: o3d.geometry.PointCloud, eps: float, min_points: int = 20) -> List[o3d.geometry.PointCloud]:
     pts = np.asarray(pcd.points)
     if pts.size == 0:
         raise ValueError(f"Загружено пустое облако точек")
