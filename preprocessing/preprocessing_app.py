@@ -213,7 +213,7 @@ def process_position_endpoint(
     use_latest: bool = Query(True),
     folder: str = Query(None),
     filename: str = Query(None),
-    eps: float = Query(0.03, description="eps (м) для DBSCAN"),
+    eps: float = Query(30, description="eps (м) для DBSCAN"),
     min_points: int = Query(20, description="min_points для DBSCAN")
 ):
     try:
