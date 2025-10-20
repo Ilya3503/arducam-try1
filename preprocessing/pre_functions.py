@@ -240,7 +240,7 @@ def preprocess_point_cloud(input_path: str, output_path: str) -> str:
 
 def process_position(input_file: str,
                      results_dir: str,
-                     eps: float = 0.03,
+                     eps: float = 30,
                      min_points: int = 20) -> dict:
     input_file = Path(input_file)
     print(f"[process_position] Получен input_file={input_file}, results_dir={results_dir}")
