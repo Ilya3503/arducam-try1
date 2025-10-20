@@ -8,12 +8,15 @@ import io
 from pathlib import Path
 
 import matplotlib
+
+from preprocessing.pre_functions import save_cluster_files
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import numpy as np
 
-from pre_functions import preprocess_point_cloud
+from pre_functions import preprocess_point_cloud, ensure_results_dir, process_position
 
 from dotenv import load_dotenv
 
@@ -73,6 +76,35 @@ def get_input_file(use_latest: bool = True, folder: str = None, filename: str = 
         output_file = folder_path / f"{input_file.stem}_preprocessed.ply"
 
     return input_file, output_file
+
+def get_input_file_preprocessed(use_latest: bool = True, folder: str = None, filename: str = None):
+    shared = Path(SHARED_DIR)
+    if not shared.exists():
+        raise FileNotFoundError(f"SHARED_DIR не найден: {shared}")
+
+    if use_latest:
+        subdirs = [d for d in shared.iterdir() if d.is_dir()]
+        if not subdirs:
+            raise FileNotFoundError("Нет подпапок с результатами")
+        latest_dir = max(subdirs, key=lambda d: d.name)
+        latest_pointcloud_file = latest_dir / f"{latest_dir.name}_preprocessed.ply"
+        if not latest_pointcloud_file.exists():
+            raise FileNotFoundError(f"PLY-файл не найден в последней папке: {latest_pointcloud_file}")
+        input_file = latest_pointcloud_file
+        results_dir = latest_dir / "results"
+    else:
+        if not folder or not filename:
+            raise ValueError("Если use_latest=False, нужно передать folder и filename")
+        folder_path = shared / folder
+        if not folder_path.exists() or not folder_path.is_dir():
+            raise FileNotFoundError(f"Папка не найдена: {folder_path}")
+        input_file = folder_path / filename
+        if not input_file.exists():
+            raise FileNotFoundError(f"Файл не найден: {input_file}")
+        results_dir = folder_path / "results"
+
+    return input_file, results_dir
+
 
 
 
@@ -144,8 +176,6 @@ def get_preview_before_preprocessing(
 
 
 
-
-
 # ------------------ Main Preprocess ------------------
 @app.post("/preprocess", tags=["Эндпоинты обработки"], summary="Препроцессинг с PNG-превью (matplotlib)")
 def preprocess(
@@ -178,4 +208,23 @@ def preprocess(
         "projection": projection,
         "preview_base64": img_base64,
     }
+
+
+@app.post("/process_position", tags=["Эндпоинты обработки"])
+def process_position_endpoint(
+    use_latest: bool = Query(True),
+    folder: str = Query(None),
+    filename: str = Query(None),
+    eps: float = Query(0.03, description="eps (м) для DBSCAN"),
+    min_points: int = Query(20, description="min_points для DBSCAN")
+):
+    try:
+        input_file, results_dir = get_input_file_preprocessed(use_latest=use_latest, folder=folder, filename=filename)
+        res = process_position(str(input_file), str(results_dir), eps=eps, min_points=min_points)
+        return res
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 

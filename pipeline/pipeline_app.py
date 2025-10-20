@@ -2,13 +2,16 @@ import os
 import io
 import base64
 import numpy as np
+from pathlib import Path
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from PIL import Image
 from dotenv import load_dotenv
-from pathlib import Path
+
+
+
 
 load_dotenv()
 
@@ -21,6 +24,7 @@ if not SHARED_DIR.exists():
 
 CAMERA_URL = os.environ.get("CAMERA_URL")
 CAMERA_URL_INFO = os.environ.get("CAMERA_URL_INFO")
+PROCESSING_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8006/process")
 
 app = FastAPI(
     title="Pipeline Service",
@@ -54,7 +58,33 @@ def get_latest_capture_dir():
     latest = max(subdirs, key=lambda d: d.name)
     return latest
 
+def get_input_file(use_latest: bool = True, folder: str = None, filename: str = None):
+    shared = Path(SHARED_DIR)
+    if not shared.exists():
+        raise FileNotFoundError(f"SHARED_DIR не найден: {shared}")
 
+    if use_latest:
+        subdirs = [d for d in shared.iterdir() if d.is_dir()]
+        if not subdirs:
+            raise FileNotFoundError("Нет подпапок с результатами")
+        latest_dir = max(subdirs, key=lambda d: d.name)
+        latest_pointcloud_file = latest_dir / f"{latest_dir.name}_pointcloud.ply"
+        if not latest_pointcloud_file.exists():
+            raise FileNotFoundError(f"PLY-файл не найден в последней папке: {latest_pointcloud_file}")
+        input_file = latest_pointcloud_file
+        output_file = latest_dir / f"{latest_dir.name}_preprocessed.ply"
+    else:
+        if not folder or not filename:
+            raise ValueError("Если use_latest=False, нужно передать folder и filename")
+        folder_path = shared / folder
+        if not folder_path.exists() or not folder_path.is_dir():
+            raise FileNotFoundError(f"Папка не найдена: {folder_path}")
+        input_file = folder_path / filename
+        if not input_file.exists():
+            raise FileNotFoundError(f"Файл не найден: {input_file}")
+        output_file = folder_path / f"{input_file.stem}_preprocessed.ply"
+
+    return input_file, output_file
 
 def depth_to_base64_png(depth_path) -> str:
     depth_path = str(depth_path)
@@ -98,6 +128,47 @@ async def process():
         "preview_b64": preview_b64,
         "ply_file": str(ply_file),
     }
+
+
+@app.post("/model_process", tags=["Эндпоинты обработки"], summary="Отправка PLY-файла в ML-сервис Processing")
+def model_process(
+    use_latest: bool = Query(True, description="Брать последний файл или нет"),
+    folder: str = Query(None, description="Имя подпапки, если use_latest=False"),
+    filename: str = Query(None, description="Имя файла, если use_latest=False")
+):
+    try:
+        input_file, _ = get_input_file(use_latest, folder, filename)
+        if not input_file.exists():
+            raise FileNotFoundError(f"Файл не найден: {input_file}")
+
+        with open(input_file, "rb") as f:
+            files = {"file": (input_file.name, f, "application/octet-stream")}
+            response = requests.post(PROCESSING_URL, files=files, timeout=30)
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as http_err:
+            raise HTTPException(status_code=response.status_code, detail=f"Processing error: {response.text}")
+
+        try:
+            resp_json = response.json()
+        except ValueError:
+            resp_json = {"raw_response_text": response.text}
+
+        return {"status": "success", "processing_response": resp_json}
+
+    except FileNotFoundError as fnf:
+        raise HTTPException(status_code=404, detail=str(fnf))
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except requests.exceptions.RequestException as req_err:
+        raise HTTPException(status_code=502, detail=f"Ошибка соединения с Processing: {req_err}")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Ошибка при отправке файла: {exc}")
+
+
+
+
 
 
 
