@@ -129,7 +129,7 @@ async def process():
     try:
         with open(ply_file, "rb") as f:
             files = {"file": (ply_file.name, f, "application/octet-stream")}
-            vis_response = requests.post(VISUALIZER_URL, files=files, timeout=20)
+            vis_response = requests.post(VISUALIZER_URL, files=files, timeout=None)
             vis_response.raise_for_status()
             vis_json = vis_response.json()
             visualization_status = vis_json.get("status", "unknown")
