@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
+import tempfile
 
 import open3d as o3d
 
@@ -291,3 +292,34 @@ def preprocess_analyze_cloud(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+@app.post("/visualize", summary="Анализ и визуализация PLY-файла")
+async def analyze_cloud(file: UploadFile = File(...)):
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        pcd = o3d.io.read_point_cloud(tmp_path)
+        points_count = len(pcd.points)
+        bbox = pcd.get_axis_aligned_bounding_box()
+        center = bbox.get_center()
+        extent = bbox.get_extent()
+
+        axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=max(extent) * 0.1, origin=center)
+
+        try:
+            o3d.visualization.draw_geometries([pcd, axis])
+        except Exception as e:
+            print(f"Визуализация недоступна (ошибка с визуализатором на стороне сервера): {e}")
+
+        return {
+            "status": "ok",
+            "message": f"Визуализировано {points_count} точек",
+            "center": center.tolist(),
+            "extent": extent.tolist()
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка анализа и визуализации на стороне сервера: {e}")

@@ -24,7 +24,7 @@ if not SHARED_DIR.exists():
 
 CAMERA_URL = os.environ.get("CAMERA_URL")
 CAMERA_URL_INFO = os.environ.get("CAMERA_URL_INFO")
-PROCESSING_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8006/process")
+VISUALIZER_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8004/visualize")
 
 app = FastAPI(
     title="Pipeline Service",
@@ -105,28 +105,47 @@ def depth_to_base64_png(depth_path) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-@app.get("/process", tags=["Эндпоинты обработки"], summary="Запуск создания изображения и получения превью")
+
+@app.get("/process", tags=["Эндпоинты обработки"], summary="Создание изображения и триггер визуализации")
 async def process():
     try:
         r = requests.get(CAMERA_URL, timeout=10)
         r.raise_for_status()
-        data = r.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка запроса к камере: {e}")
 
     latest_capture_dir = get_latest_capture_dir()
-    depth_file = latest_capture_dir / f"{latest_capture_dir.name}_depth.npy"
     ply_file = latest_capture_dir / f"{latest_capture_dir.name}_pointcloud.ply"
+    depth_file = latest_capture_dir / f"{latest_capture_dir.name}_depth.npy"
+
+    if not ply_file.exists():
+        raise HTTPException(status_code=404, detail=f"PLY-файл не найден: {ply_file}")
 
     try:
         preview_b64 = depth_to_base64_png(depth_file)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при обработке depth map: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки depth map: {e}")
+
+    try:
+        with open(ply_file, "rb") as f:
+            files = {"file": (ply_file.name, f, "application/octet-stream")}
+            vis_response = requests.post(VISUALIZER_URL, files=files, timeout=20)
+            vis_response.raise_for_status()
+            vis_json = vis_response.json()
+            visualization_status = vis_json.get("status", "unknown")
+            visualization_message = vis_json.get("message", "")
+    except Exception as e:
+        visualization_status = "error"
+        visualization_message = f"Ошибка отправки в визуализатор: {e}"
 
     return {
         "status": "Успешно",
         "preview_b64": preview_b64,
         "ply_file": str(ply_file),
+        "visualization": {
+            "status": visualization_status,
+            "message": visualization_message
+        }
     }
 
 
@@ -143,7 +162,7 @@ def model_process(
 
         with open(input_file, "rb") as f:
             files = {"file": (input_file.name, f, "application/octet-stream")}
-            response = requests.post(PROCESSING_URL, files=files, timeout=30)
+            response = requests.post(VISUALIZER_URL, files=files, timeout=30)
 
         try:
             response.raise_for_status()
