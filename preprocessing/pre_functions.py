@@ -178,15 +178,25 @@ def save_cluster_files(clusters: List[o3d.geometry.PointCloud], clusters_dir: st
 
 def get_obb_for_cluster(cluster: o3d.t.geometry.PointCloud) -> dict:
     obb = cluster.get_oriented_bounding_box()
-    # Все свойства – t.tensor → конвертируем в numpy
-    center = obb.center.numpy().tolist()
-    extent = obb.extent.numpy().tolist()
 
-    R = obb.R.numpy()
-    # yaw вокруг оси Z
+    # center и extent могут быть t.Tensor или numpy
+    center = obb.center
+    extent = obb.extent
+    if hasattr(center, "numpy"):
+        center = center.numpy()
+    if hasattr(extent, "numpy"):
+        extent = extent.numpy()
+    center = center.tolist()
+    extent = extent.tolist()
+
+    # R точно t.Tensor
+    R = obb.R
+    if hasattr(R, "numpy"):
+        R = R.numpy()
     yaw = float(np.arctan2(R[1, 0], R[0, 0]))
 
     return {"center": center, "extent": extent, "yaw": yaw}
+
 
 
 def create_and_save_annotated_pointcloud(pcd: o3d.geometry.PointCloud, clusters: List[o3d.geometry.PointCloud], results_dir: str) -> str:
