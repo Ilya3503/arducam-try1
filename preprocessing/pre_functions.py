@@ -180,8 +180,8 @@ def get_obb_for_cluster(cluster: o3d.geometry.PointCloud) -> Dict:
     obb = cluster.get_oriented_bounding_box()
     center = list(map(float, obb.center))
     extent = list(map(float, obb.extent))
-    R = np.asarray(obb.R)
-    yaw = float(np.arctan2(R[1, 0], R[0, 0]))
+    r = np.asarray(obb.r)
+    yaw = float(np.arctan2(r[1, 0], r[0, 0]))
     return {"center": center, "extent": extent, "yaw": yaw}
 
 
@@ -227,6 +227,61 @@ def save_position_json(result: dict, results_dir: str) -> str:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(f"[save_position_json] Сохранён JSON: {out}")
     return str(out)
+
+
+
+def get_obb_geometries(clusters: list) -> list:
+    obb_geoms = []
+    colors = plt.get_cmap("tab10")(np.linspace(0, 1, 10))[:, :3]
+
+    for i, cluster in enumerate(clusters):
+        if len(cluster.points) == 0:
+            continue
+
+        obb = cluster.get_oriented_bounding_box()
+        obb.color = colors[i % len(colors)]  # задаём цвет линии
+        obb_geoms.append(obb)
+    return obb_geoms
+
+
+def create_annotated_pointcloud_with_obb(
+    pcd: o3d.geometry.PointCloud,
+    clusters: list,
+    results_dir: str):
+
+    results_path = Path(results_dir)
+    out_path = results_path / "annotated_with_obb.ply"
+
+    if not clusters:
+        o3d.io.write_point_cloud(str(out_path), pcd)
+        print(f"[INFO] Saved plain PLY to {out_path}")
+        return str(out_path)
+
+    # Цвета кластеров
+    colors = plt.get_cmap("tab10")(np.linspace(0, 1, 10))[:, :3]
+
+    all_points, all_colors = [], []
+    for i, cluster in enumerate(clusters):
+        pts = np.asarray(cluster.points)
+        if pts.size == 0:
+            continue
+        clr = np.tile(colors[i % len(colors)], (pts.shape[0], 1))
+        all_points.append(pts)
+        all_colors.append(clr)
+
+    merged = o3d.geometry.PointCloud()
+    merged.points = o3d.utility.Vector3dVector(np.vstack(all_points))
+    merged.colors = o3d.utility.Vector3dVector(np.vstack(all_colors))
+
+    # Добавляем obb рамки
+    obb_geoms = get_obb_geometries(clusters)
+
+    # Сохраняем отдельный файл с точками и рамками (если визуализатор поддерживает)
+    o3d.io.write_point_cloud(str(out_path), merged)
+    print(f"[INFO] Saved annotated + OBB PLY to {out_path}")
+
+    # Можно также вернуть список obb для визуализатора
+    return str(out_path), obb_geoms
 
 
 
@@ -276,10 +331,25 @@ def process_position(input_file: str,
         info["id"] = i
         info["points_count"] = int(len(c.points))
         clusters_info.append(info)
+    colors = plt.get_cmap("tab10")(np.linspace(0, 1, 10))[:, :3]
+    obbs_for_json = []
+
+    for i, c in enumerate(clusters):
+        info = clusters_info[i]  # уже есть центр/extent/yaw
+        col = colors[i % len(colors)].tolist()
+        obb_entry = {
+            "id": i,
+            "center": info["center"],
+            "extent": info["extent"],
+            "yaw": info.get("yaw", 0.0),
+            "color": col
+        }
+        obbs_for_json.append(obb_entry)
 
     # Сохранения
     clusters_paths = save_cluster_files(clusters, str(clusters_dir))
     annotated_path = create_and_save_annotated_pointcloud(pcd, clusters, str(results_dir))
+    annotated_with_obb_path, obb_geoms = create_annotated_pointcloud_with_obb(pcd, clusters, str(results_dir))
 
     result = {
         "status": "ok",
@@ -288,7 +358,8 @@ def process_position(input_file: str,
         "num_clusters": len(clusters),
         "clusters": clusters_info,
         "clusters_paths": clusters_paths,
-        "annotated_ply": annotated_path
+        "annotated_ply": annotated_path,
+        "obbs": obbs_for_json
     }
 
     # Сохраняем JSON на диск

@@ -26,8 +26,8 @@ INPUT_FILE = SHARED_DIR / "last_pointcloud.ply"
 OUTPUT_FILE = SHARED_DIR / "last_preprocessed_pointcloud.ply"
 PREVIEW_FILE = SHARED_DIR / "last_preview.png"
 PREVIEW_BEFORE_PRE_FILE = SHARED_DIR / "last_preview_before_pre.png"
-VISUALIZER_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8004/visualize")
-
+VISUALIZER_URL = os.environ.get("VISUALIZER_URL", "http://100.96.67.98:8004/visualize")
+VISUALIZER_OBB_URL = os.environ.get("VISUALIZER_OBB_URL", "http://100.96.67.98:8004/visualize_with_obb")
 
 
 app = FastAPI(
@@ -265,6 +265,22 @@ def process_position_endpoint(
     try:
         input_file, results_dir = get_input_file_preprocessed(use_latest=use_latest, folder=folder, filename=filename)
         res = process_position(str(input_file), str(results_dir), eps=eps, min_points=min_points, max_points=max_points)
+        try:
+            annotated_path = res.get("annotated_ply")
+            json_path = Path(results_dir) / "position.json"
+            if annotated_path and Path(annotated_path).exists() and json_path and Path(json_path).exists():
+                with open(annotated_path, "rb") as f_ply, open(json_path, "rb") as f_json:
+                    files = {"file": (Path(annotated_path).name, f_ply, "application/octet-stream"),
+                             "json_file": (Path(json_path).name, f_json, "application/json")}
+                    vis_response = requests.post(VISUALIZER_OBB_URL, files=files, timeout=20)
+                    print(f"[visualizer] Ответ: {vis_response.status_code}")
+                    res["visualizer_response"] = vis_response.text
+            else:
+                print("[visualizer] annotated файл не найден — визуализация пропущена")
+        except Exception as ve:
+            print(f"[visualizer] Ошибка при отправке на визуализатор: {ve}")
+            res["visualizer_error"] = str(ve)
+
         return res
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
