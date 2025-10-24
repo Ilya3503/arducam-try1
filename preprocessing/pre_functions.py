@@ -180,8 +180,8 @@ def get_obb_for_cluster(cluster: o3d.geometry.PointCloud) -> Dict:
     obb = cluster.get_oriented_bounding_box()
     center = list(map(float, obb.center))
     extent = list(map(float, obb.extent))
-    r = np.asarray(obb.r)
-    yaw = float(np.arctan2(r[1, 0], r[0, 0]))
+    R = np.asarray(obb.R)
+    yaw = float(np.arctan2(R[1, 0], R[0, 0]))
     return {"center": center, "extent": extent, "yaw": yaw}
 
 
