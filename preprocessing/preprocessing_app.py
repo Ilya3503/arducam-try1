@@ -253,7 +253,6 @@ def preprocess(
 
 
 
-@app.post("/process_position", tags=["Эндпоинты обработки"])
 def process_position_endpoint(
     use_latest: bool = Query(True),
     folder: str = Query(None),
@@ -265,13 +264,15 @@ def process_position_endpoint(
 ):
     try:
         input_file, results_dir = get_input_file_preprocessed(use_latest, folder, filename)
-        res = process_position(str(input_file), str(results_dir), eps, min_points, max_points)
+        res = process_position(str(input_file), str(results_dir), eps, min_points, max_points, send_with_obb)
 
         try:
             annotated_path = res.get("annotated_ply")
             if annotated_path and Path(annotated_path).exists():
                 if send_with_obb:
                     json_path = Path(results_dir) / "position.json"
+                    if not json_path.exists():
+                        raise FileNotFoundError("JSON с OBB не найден")
                     with open(annotated_path, "rb") as f_ply, open(json_path, "rb") as f_json:
                         files = {
                             "file": (Path(annotated_path).name, f_ply, "application/octet-stream"),

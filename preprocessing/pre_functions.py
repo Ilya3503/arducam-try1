@@ -176,6 +176,17 @@ def save_cluster_files(clusters: List[o3d.geometry.PointCloud], clusters_dir: st
     return saved_paths
 
 
+def remove_invalid_points_t(pcd: o3d.t.geometry.PointCloud) -> o3d.t.geometry.PointCloud:
+    pts = pcd.point.positions.numpy()
+    mask = np.isfinite(pts).all(axis=1)
+    clean_pcd = o3d.t.geometry.PointCloud()
+    clean_pcd.point.positions = o3d.core.Tensor(pts[mask], dtype=pcd.point.positions.dtype)
+    if "colors" in pcd.point:
+        colors = pcd.point.colors.numpy()[mask]
+        clean_pcd.point.colors = o3d.core.Tensor(colors, dtype=pcd.point.colors.dtype)
+    return clean_pcd
+
+
 def get_obb_for_cluster(cluster: o3d.t.geometry.PointCloud) -> dict:
     obb = cluster.get_oriented_bounding_box()
 
@@ -322,48 +333,57 @@ def preprocess_point_cloud(
 
 
 
-def process_position(input_file: str,
-                     results_dir: str,
-                     eps: float = 30,
-                     min_points: int = 20,
-                     max_points: int = None) -> dict:
+def process_position(
+    input_file: str,
+    results_dir: str,
+    eps: float = 30,
+    min_points: int = 20,
+    max_points: int = None,
+    send_with_obb: bool = True
+) -> dict:
+
     input_file = Path(input_file)
-    print(f"[process_position] Получен input_file={input_file}, results_dir={results_dir}")
-    if not Path(input_file).exists():
-        raise FileNotFoundError(f"[process_position] Файл не найден: {input_file}")
-
     results_dir = Path(results_dir)
-    results_dir = ensure_results_dir(results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
     clusters_dir = results_dir / "clusters"
+    clusters_dir.mkdir(exist_ok=True)
 
-    pcd = load_point_cloud(str(input_file))   # используем твою существующую функцию
+    pcd = load_point_cloud(str(input_file))  # твоя функция загрузки
+    pcd = remove_invalid_points_t(pcd)
 
-    clusters = cluster_dbscan(pcd, eps=eps, min_points=min_points, max_points=max_points)  # может вернуть []
+    clusters = cluster_dbscan(pcd, eps=eps, min_points=min_points, max_points=max_points)
     clusters_info = []
-    for i, c in enumerate(clusters):
-        info = get_obb_for_cluster(c)
-        info["id"] = i
-        info["points_count"] = int(len(c.points))
-        clusters_info.append(info)
-    colors = plt.get_cmap("tab10")(np.linspace(0, 1, 10))[:, :3]
     obbs_for_json = []
 
-    for i, c in enumerate(clusters):
-        info = clusters_info[i]  # уже есть центр/extent/yaw
-        col = colors[i % len(colors)].tolist()
-        obb_entry = {
-            "id": i,
-            "center": info["center"],
-            "extent": info["extent"],
-            "yaw": info.get("yaw", 0.0),
-            "color": col
-        }
-        obbs_for_json.append(obb_entry)
+    colors = plt.get_cmap("tab10")(np.linspace(0, 1, 10))[:, :3]
 
-    # Сохранения
+    for i, c in enumerate(clusters):
+        clusters_info.append({
+            "id": i,
+            "points_count": int(len(c.points))
+        })
+
+        if send_with_obb:
+            info = get_obb_for_cluster(c)
+            clusters_info[-1].update(info)
+            col = colors[i % len(colors)].tolist()
+            obb_entry = {
+                "id": i,
+                "center": info["center"],
+                "extent": info["extent"],
+                "yaw": info.get("yaw", 0.0),
+                "color": col
+            }
+            obbs_for_json.append(obb_entry)
+
     clusters_paths = save_cluster_files(clusters, str(clusters_dir))
     annotated_path = create_and_save_annotated_pointcloud(pcd, clusters, str(results_dir))
-    annotated_with_obb_path, obb_geoms = create_annotated_pointcloud_with_obb(pcd, clusters, str(results_dir))
+
+    # Только если нужно OBB
+    if send_with_obb:
+        annotated_with_obb_path, obb_geoms = create_annotated_pointcloud_with_obb(pcd, clusters, str(results_dir))
+    else:
+        annotated_with_obb_path, obb_geoms = None, []
 
     result = {
         "status": "ok",
@@ -376,9 +396,7 @@ def process_position(input_file: str,
         "obbs": obbs_for_json
     }
 
-    # Сохраняем JSON на диск
     save_position_json(result, str(results_dir))
-
     return result
 
 
