@@ -6,6 +6,7 @@ import open3d as o3d
 import base64
 import io
 from pathlib import Path
+import requests
 
 import matplotlib
 
@@ -25,6 +26,7 @@ INPUT_FILE = SHARED_DIR / "last_pointcloud.ply"
 OUTPUT_FILE = SHARED_DIR / "last_preprocessed_pointcloud.ply"
 PREVIEW_FILE = SHARED_DIR / "last_preview.png"
 PREVIEW_BEFORE_PRE_FILE = SHARED_DIR / "last_preview_before_pre.png"
+VISUALIZER_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8004/visualize")
 
 
 
@@ -180,17 +182,55 @@ def preprocess(
     use_latest: bool = Query(True, description="Брать последний файл или нет"),
     folder: str = Query(None, description="Имя подпапки, если use_latest=False"),
     filename: str = Query(None, description="Имя файла, если use_latest=False"),
-    projection: str = Query("xy", description="Проекция для превью: xy, xz или yz")
+    projection: str = Query("xy", description="Проекция для превью: xy, xz или yz"),
+
+    voxel_size: float = Query(8.0, description="Размер вокселя для даунсэмплинга"),
+    nb_neighbors: int = Query(20, description="Кол-во соседей для фильтрации шума"),
+    std_ratio: float = Query(2.0, description="Коэффициент стандартного отклонения при фильтрации"),
+    distance_threshold: float = Query(70.0, description="Порог расстояния при удалении плоскости"),
+    ransac_n: int = Query(3, description="Количество точек для RANSAC"),
+    num_iterations: int = Query(1000, description="Количество итераций RANSAC"),
+    min_bound_x: float = Query(-231, description="Мин. X для обрезки"),
+    min_bound_y: float = Query(-190, description="Мин. Y для обрезки"),
+    min_bound_z: float = Query(474, description="Мин. Z для обрезки"),
+    max_bound_x: float = Query(264, description="Макс. X для обрезки"),
+    max_bound_y: float = Query(190, description="Макс. Y для обрезки"),
+    max_bound_z: float = Query(670, description="Макс. Z для обрезки"),
 ):
     try:
         input_file, output_file = get_input_file(use_latest, folder, filename)
         print(str(input_file), str(output_file))
 
-        preprocess_point_cloud(str(input_file), str(output_file))
+        preprocess_point_cloud(
+            str(input_file),
+            str(output_file),
+            voxel_size=voxel_size,
+            nb_neighbors=nb_neighbors,
+            std_ratio=std_ratio,
+            distance_threshold=distance_threshold,
+            ransac_n=ransac_n,
+            num_iterations=num_iterations,
+            min_bound=(min_bound_x, min_bound_y, min_bound_z),
+            max_bound=(max_bound_x, max_bound_y, max_bound_z),
+        )
 
         pcd = o3d.io.read_point_cloud(str(output_file))
-
         img_base64 = save_preview_projection(pcd, projection=projection)
+
+
+
+        try:
+            with open(output_file, "rb") as f:
+                files = {"file": (output_file.name, f, "application/octet-stream")}
+                vis_response = requests.post(VISUALIZER_URL, files=files, timeout=20)
+                vis_response.raise_for_status()
+                vis_json = vis_response.json()
+                visualization_status = vis_json.get("status", "unknown")
+                visualization_message = vis_json.get("message", "")
+        except Exception as e:
+            visualization_status = "error"
+            visualization_message = f"Ошибка отправки в визуализатор: {e}"
+
 
     except FileNotFoundError as fnf:
         raise HTTPException(status_code=404, detail=str(fnf))
@@ -205,7 +245,12 @@ def preprocess(
         "folder": str(output_file.parent),
         "projection": projection,
         "preview_base64": img_base64,
+        "visualization": {
+            "status": visualization_status,
+            "message": visualization_message
+        }
     }
+
 
 
 @app.post("/process_position", tags=["Эндпоинты обработки"])
@@ -214,11 +259,12 @@ def process_position_endpoint(
     folder: str = Query(None),
     filename: str = Query(None),
     eps: float = Query(30, description="eps (м) для DBSCAN"),
-    min_points: int = Query(20, description="min_points для DBSCAN")
+    min_points: int = Query(20, description="min_points для DBSCAN"),
+    max_points: int = Query(None, description="max_points для DBSCAN")
 ):
     try:
         input_file, results_dir = get_input_file_preprocessed(use_latest=use_latest, folder=folder, filename=filename)
-        res = process_position(str(input_file), str(results_dir), eps=eps, min_points=min_points)
+        res = process_position(str(input_file), str(results_dir), eps=eps, min_points=min_points, max_points=max_points)
         return res
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))

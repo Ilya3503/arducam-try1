@@ -114,7 +114,7 @@ def crop_roi(pcd: o3d.geometry.PointCloud,
 
 
 
-def cluster_dbscan(pcd: o3d.geometry.PointCloud, eps: float, min_points: int = 20) -> List[o3d.geometry.PointCloud]:
+def cluster_dbscan(pcd: o3d.geometry.PointCloud, eps: float, min_points: int = 20, max_points: int = None) -> List[o3d.geometry.PointCloud]:
     pts = np.asarray(pcd.points)
     if pts.size == 0:
         raise ValueError(f"Загружено пустое облако точек")
@@ -131,6 +131,10 @@ def cluster_dbscan(pcd: o3d.geometry.PointCloud, eps: float, min_points: int = 2
         idx = np.where(labels == lab)[0]
         if idx.size == 0:
             continue
+
+        if max_points is not None and idx.size > max_points:
+            continue
+
         cluster = pcd.select_by_index(idx.tolist())
         clusters.append(cluster)
 
@@ -227,12 +231,23 @@ def save_position_json(result: dict, results_dir: str) -> str:
 
 
 
-def preprocess_point_cloud(input_path: str, output_path: str) -> str:
+def preprocess_point_cloud(
+    input_path: str,
+    output_path: str,
+    voxel_size: float = 8.0,
+    nb_neighbors: int = 20,
+    std_ratio: float = 2.0,
+    distance_threshold: float = 70.0,
+    ransac_n: int = 3,
+    num_iterations: int = 1000,
+    min_bound: tuple = (-231, -190, 474),
+    max_bound: tuple = (264, 190, 670),
+) -> str:
     pcd = load_point_cloud(input_path)
-    pcd = voxel_downsample(pcd, voxel_size=8)
-    pcd = remove_noise(pcd, nb_neighbors=20, std_ratio=2.0)
-    pcd = remove_plane(pcd, distance_threshold=70, ransac_n=3, num_iterations=1000)
-    pcd = crop_points_numpy(pcd, min_bound=(-231, -190, 474), max_bound=(264, 190, 670))
+    pcd = voxel_downsample(pcd, voxel_size=voxel_size)
+    pcd = remove_noise(pcd, nb_neighbors=nb_neighbors, std_ratio=std_ratio)
+    pcd = remove_plane(pcd,  distance_threshold=distance_threshold, ransac_n=ransac_n, num_iterations=num_iterations)
+    pcd = crop_points_numpy(pcd, min_bound=min_bound, max_bound=max_bound)
     save_point_cloud(pcd, output_path)
     return output_path
 
@@ -241,7 +256,8 @@ def preprocess_point_cloud(input_path: str, output_path: str) -> str:
 def process_position(input_file: str,
                      results_dir: str,
                      eps: float = 30,
-                     min_points: int = 20) -> dict:
+                     min_points: int = 20,
+                     max_points: int = None) -> dict:
     input_file = Path(input_file)
     print(f"[process_position] Получен input_file={input_file}, results_dir={results_dir}")
     if not Path(input_file).exists():
@@ -253,7 +269,7 @@ def process_position(input_file: str,
 
     pcd = load_point_cloud(str(input_file))   # используем твою существующую функцию
 
-    clusters = cluster_dbscan(pcd, eps=eps, min_points=min_points)  # может вернуть []
+    clusters = cluster_dbscan(pcd, eps=eps, min_points=min_points, max_points=max_points)  # может вернуть []
     clusters_info = []
     for i, c in enumerate(clusters):
         info = get_obb_for_cluster(c)
