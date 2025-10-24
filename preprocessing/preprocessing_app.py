@@ -252,7 +252,7 @@ def preprocess(
     }
 
 
-
+@app.post("/process_position", tags=["Эндпоинты обработки"], summary="Процессинг")
 def process_position_endpoint(
     use_latest: bool = Query(True),
     folder: str = Query(None),
