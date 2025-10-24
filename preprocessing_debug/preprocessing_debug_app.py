@@ -346,6 +346,10 @@ def load_obbs_from_json(json_path: str) -> list:
 @app.post("/visualize_with_obb", summary="Визуализация PLY с OBB из JSON")
 async def visualize_with_obb(file: UploadFile = File(...), json_file: UploadFile = File(...)):
     try:
+        import tempfile
+        import open3d as o3d
+        import numpy as np
+
         # Сохраняем временно PLY и JSON
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as tmp_ply:
             tmp_ply.write(await file.read())
@@ -355,51 +359,49 @@ async def visualize_with_obb(file: UploadFile = File(...), json_file: UploadFile
             tmp_json.write(await json_file.read())
             json_path = tmp_json.name
 
-        # Загружаем облако точек
-        pcd = o3d.io.read_point_cloud(ply_path)
+        # Загружаем точечное облако
+        pcd = o3d.t.io.read_point_cloud(ply_path)
 
-        # Загружаем OBB из JSON
-        obb_data = load_obbs_from_json(json_path)
+        # Загружаем OBB
+        import json
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        obbs = data.get("obbs", [])
 
         obb_geoms = []
-        for obb in obb_data:
+        for obb in obbs:
             center = np.array(obb["center"], dtype=np.float64)
             extent = np.array(obb["extent"], dtype=np.float64)
             yaw = obb.get("yaw", 0.0)
-            color = np.array(obb.get("color", [0.0, 1.0, 0.0]), dtype=np.float64)
+            color = np.array(obb.get("color", [1.0, 0.0, 0.0]), dtype=np.float64)
 
-            # Создаём пустой OBB и задаём параметры
+            # Создаём пустой legacy OBB (для draw_geometries)
             obb_box = o3d.geometry.OrientedBoundingBox()
             obb_box.center = center
             obb_box.extent = extent
 
-            # Матрица вращения вокруг Z
+            # Вращение вокруг Z
             R = np.array([
                 [np.cos(yaw), -np.sin(yaw), 0.0],
                 [np.sin(yaw),  np.cos(yaw), 0.0],
                 [0.0,          0.0,         1.0]
             ], dtype=np.float64)
             obb_box.R = R
-
             obb_box.color = color
             obb_geoms.append(obb_box)
 
-        # Добавляем координатные оси для наглядности
-        bbox = pcd.get_axis_aligned_bounding_box()
+        # Добавляем координатные оси
         axis = o3d.geometry.TriangleMesh.create_coordinate_frame(
-            size=max(bbox.get_extent())*0.1, origin=bbox.get_center()
+            size=max(pcd.get_max_bound() - pcd.get_min_bound())*0.1,
+            origin=(pcd.get_max_bound() + pcd.get_min_bound())/2
         )
 
-        # Визуализируем облако + все OBB
-        try:
-            o3d.visualization.draw_geometries([pcd, axis] + obb_geoms)
-        except Exception as e:
-            print(f"Визуализация недоступна: {e}")
+        # Конвертируем t-geometry → legacy для draw_geometries
+        pcd_legacy = pcd.to_legacy()
+        o3d.visualization.draw_geometries([pcd_legacy, axis] + obb_geoms)
 
-        return {
-            "status": "ok",
-            "message": f"Визуализировано {len(pcd.points)} точек с {len(obb_geoms)} OBB"
-        }
+        return {"status": "ok", "message": f"Визуализировано {len(pcd_legacy.points)} точек с {len(obb_geoms)} OBB"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка визуализации PLY с OBB: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка визуализации: {e}")
+

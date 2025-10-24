@@ -258,33 +258,46 @@ def process_position_endpoint(
     use_latest: bool = Query(True),
     folder: str = Query(None),
     filename: str = Query(None),
-    eps: float = Query(30, description="eps (м) для DBSCAN"),
-    min_points: int = Query(20, description="min_points для DBSCAN"),
-    max_points: int = Query(None, description="max_points для DBSCAN")
+    eps: float = Query(30),
+    min_points: int = Query(20),
+    max_points: int = Query(None),
+    send_with_obb: bool = Query(True, description="Отправлять на визуализатор PLY+JSON с OBB или только PLY")
 ):
     try:
-        input_file, results_dir = get_input_file_preprocessed(use_latest=use_latest, folder=folder, filename=filename)
-        res = process_position(str(input_file), str(results_dir), eps=eps, min_points=min_points, max_points=max_points)
+        input_file, results_dir = get_input_file_preprocessed(use_latest, folder, filename)
+        res = process_position(str(input_file), str(results_dir), eps, min_points, max_points)
+
         try:
             annotated_path = res.get("annotated_ply")
-            json_path = Path(results_dir) / "position.json"
-            if annotated_path and Path(annotated_path).exists() and json_path and Path(json_path).exists():
-                with open(annotated_path, "rb") as f_ply, open(json_path, "rb") as f_json:
-                    files = {"file": (Path(annotated_path).name, f_ply, "application/octet-stream"),
-                             "json_file": (Path(json_path).name, f_json, "application/json")}
-                    vis_response = requests.post(VISUALIZER_OBB_URL, files=files, timeout=20)
-                    print(f"[visualizer] Ответ: {vis_response.status_code}")
-                    res["visualizer_response"] = vis_response.text
+            if annotated_path and Path(annotated_path).exists():
+                if send_with_obb:
+                    json_path = Path(results_dir) / "position.json"
+                    with open(annotated_path, "rb") as f_ply, open(json_path, "rb") as f_json:
+                        files = {
+                            "file": (Path(annotated_path).name, f_ply, "application/octet-stream"),
+                            "json_file": (Path(json_path).name, f_json, "application/json")
+                        }
+                        vis_response = requests.post(VISUALIZER_OBB_URL, files=files, timeout=20)
+                else:
+                    with open(annotated_path, "rb") as f_ply:
+                        files = {"file": (Path(annotated_path).name, f_ply, "application/octet-stream")}
+                        vis_response = requests.post(VISUALIZER_URL, files=files, timeout=20)
+
+                res["visualizer_response"] = vis_response.text
+                print(f"[visualizer] Ответ: {vis_response.status_code}")
             else:
                 print("[visualizer] annotated файл не найден — визуализация пропущена")
+
         except Exception as ve:
             print(f"[visualizer] Ошибка при отправке на визуализатор: {ve}")
             res["visualizer_error"] = str(ve)
 
         return res
+
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 

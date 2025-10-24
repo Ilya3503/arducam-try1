@@ -176,12 +176,16 @@ def save_cluster_files(clusters: List[o3d.geometry.PointCloud], clusters_dir: st
     return saved_paths
 
 
-def get_obb_for_cluster(cluster: o3d.geometry.PointCloud) -> Dict:
+def get_obb_for_cluster(cluster: o3d.t.geometry.PointCloud) -> dict:
     obb = cluster.get_oriented_bounding_box()
-    center = list(map(float, obb.center))
-    extent = list(map(float, obb.extent))
-    R = np.asarray(obb.R)
+    # Все свойства – t.tensor → конвертируем в numpy
+    center = obb.center.numpy().tolist()
+    extent = obb.extent.numpy().tolist()
+
+    R = obb.R.numpy()
+    # yaw вокруг оси Z
     yaw = float(np.arctan2(R[1, 0], R[0, 0]))
+
     return {"center": center, "extent": extent, "yaw": yaw}
 
 
