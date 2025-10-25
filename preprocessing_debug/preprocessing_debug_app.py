@@ -6,6 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import tempfile
 
+import matplotlib as plt
+import matplotlib.cm as cm
+
 import open3d as o3d
 
 from pre_functions_debug import load_point_cloud_noresize, save_point_cloud, voxel_downsample, remove_noise, remove_plane, crop_roi, load_point_cloud
@@ -323,3 +326,108 @@ async def analyze_cloud(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка анализа и визуализации на стороне сервера: {e}")
+
+
+
+@app.post("/visualize_clusters", summary="Кластеризация и визуализация с OBB")
+async def visualize_clusters(
+    file: UploadFile = File(...),
+    eps: float = 30.0,
+    min_points: int = 20
+):
+
+    try:
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        pcd = o3d.io.read_point_cloud(tmp_path)
+        if len(pcd.points) == 0:
+            raise HTTPException(status_code=400, detail="Файл не содержит точек")
+
+
+        labels = np.array(pcd.cluster_dbscan(eps=eps, min_points=min_points, print_progress=True))
+        num_clusters = int(labels.max() + 1) if labels.size > 0 else 0
+        print(f"[INFO] Найдено кластеров: {num_clusters}")
+
+        if num_clusters <= 0:
+            raise HTTPException(status_code=400, detail="Кластеры не найдены")
+
+        cmap = plt.get_cmap("tab10")
+        geoms = []
+        clusters_info = []
+
+        for i in range(num_clusters):
+            idx = np.where(labels == i)[0]
+            cluster = pcd.select_by_index(idx)
+            color = cmap(i % 10)[:3]
+            cluster.paint_uniform_color(color)
+
+            pts = np.asarray(cluster.points)
+            centroid = pts.mean(axis=0).tolist() if pts.size > 0 else [0.0, 0.0, 0.0]
+
+            aabb = cluster.get_axis_aligned_bounding_box()
+            aabb_min = aabb.get_min_bound().tolist()
+            aabb_max = aabb.get_max_bound().tolist()
+            aabb_extent = aabb.get_extent().tolist()
+
+            try:
+                obb = cluster.get_oriented_bounding_box()
+                obb_center = obb.center.tolist()
+                obb_extent = obb.extent.tolist()
+                obb_rot = obb.R.tolist()
+                obb_valid = True
+            except Exception as e:
+                print(f"[WARN] Не удалось построить OBB для кластера {i}: {e}")
+                obb = aabb
+                obb_center = centroid
+                obb_extent = aabb_extent
+                obb_rot = np.eye(3).tolist()
+                obb_valid = False
+
+            try:
+                obb.color = (0, 1, 0)
+            except Exception:
+                pass
+            geoms.extend([cluster, obb])
+
+            distance = float(np.linalg.norm(np.array(centroid)))
+            priority = float(1.0 / (1.0 + distance))
+
+            clusters_info.append({
+                "id": i,
+                "grab_order": None,
+                "points_count": int(len(pts)),
+                "centroid": centroid,
+                "distance": distance,
+                "priority": priority,
+                "aabb_min": aabb_min,
+                "aabb_max": aabb_max,
+                "aabb_extent": aabb_extent,
+                "obb_center": obb_center,
+                "obb_extent": obb_extent,
+                "obb_rotation": obb_rot,
+                "obb_valid": obb_valid
+            })
+
+        clusters_info.sort(key=lambda x: x["distance"])
+        for order, item in enumerate(clusters_info, start=1):
+            item["grab_order"] = order
+
+        bbox = pcd.get_axis_aligned_bounding_box()
+        center = bbox.get_center()
+        axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=center)
+        geoms.append(axis)
+
+        o3d.visualization.draw_geometries(geoms)
+
+        return {
+            "status": "ok",
+            "message": f"Визуализировано {num_clusters} кластеров",
+            "num_points": len(pcd.points),
+            "clusters": clusters_info
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка кластеризации или визуализации: {e}")

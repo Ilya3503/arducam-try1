@@ -26,7 +26,8 @@ INPUT_FILE = SHARED_DIR / "last_pointcloud.ply"
 OUTPUT_FILE = SHARED_DIR / "last_preprocessed_pointcloud.ply"
 PREVIEW_FILE = SHARED_DIR / "last_preview.png"
 PREVIEW_BEFORE_PRE_FILE = SHARED_DIR / "last_preview_before_pre.png"
-VISUALIZER_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8004/visualize")
+VISUALIZER_URL = os.environ.get("VISUALIZER_URL", "http://100.96.67.98:8004/visualize")
+VISUALIZER_CLUSTER_URL = os.environ.get("VISUALIZER_CLUSTER_URL", "http://100.96.67.98:8004/visualize_clusters")
 
 
 
@@ -270,5 +271,45 @@ def process_position_endpoint(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+@app.post("/send_to_visualizer", tags=["Визуализация"], summary="Отправка файла в визуализатор кластеров")
+def send_to_visualizer(
+    use_latest: bool = Query(True, description="Брать последний препроцессинг-файл"),
+    folder: str = Query(None, description="Папка, если use_latest=False"),
+    filename: str = Query(None, description="Имя файла, если use_latest=False"),
+    eps: float = Query(30.0, description="eps для DBSCAN"),
+    min_points: int = Query(20, description="min_points для DBSCAN")
+):
+
+    try:
+        input_file, _ = get_input_file_preprocessed(use_latest, folder, filename)
+        if not Path(input_file).exists():
+            raise HTTPException(status_code=404, detail=f"Файл не найден: {input_file}")
+
+        with open(input_file, "rb") as f:
+            files = {"file": (Path(input_file).name, f, "application/octet-stream")}
+            response = requests.post(
+                f"{VISUALIZER_CLUSTER_URL}/visualize_clusters",
+                files=files,
+                data={"eps": eps, "min_points": min_points},
+                timeout=60
+            )
+
+        # --- пробуем вернуть JSON-ответ сервера ---
+        try:
+            return response.json()
+        except Exception:
+            return {"status": "error", "message": f"Не удалось прочитать ответ: {response.text}"}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка запроса к визуализатору: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при отправке в визуализатор: {e}")
 
 
