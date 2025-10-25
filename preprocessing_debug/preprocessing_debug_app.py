@@ -354,7 +354,7 @@ async def visualize_clusters(
         if num_clusters <= 0:
             raise HTTPException(status_code=400, detail="Кластеры не найдены")
 
-        cmap = plt.get_cmap("tab10")
+        cmap = cm.get_cmap("tab10")
         geoms = []
         clusters_info = []
 
