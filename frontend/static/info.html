@@ -9,114 +9,137 @@
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.9"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
 
-  <div class="w-full max-w-5xl p-8 bg-white shadow-2xl rounded-2xl space-y-10">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
 
-    <!-- Кнопки перехода вверху страницы -->
-    <div class="flex justify-end gap-2 mb-4">
-      <a href="index.html"
-         class="py-1 px-3 bg-blue-500 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-600 transition">
-        New1
-      </a>
-      <a href="preview.html"
-         class="py-1 px-3 bg-green-500 text-white text-sm font-medium rounded-lg shadow hover:bg-green-600 transition">
-        Preview
-      </a>
+  <div class="w-4/5 max-w-6x1 p-10 bg-white shadow-xl rounded-2xl space-y-12 border border-gray-200">
+
+    <!-- Заголовок -->
+    <div class="flex justify-between items-center border-b pb-4">
+      <h1 class="text-3xl font-bold text-gray-800">📡 Панель управления камерой</h1>
+      <div class="flex gap-2">
+        <a href="index.html"
+           class="py-1.5 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-700 transition">
+          New1
+        </a>
+        <a href="preview.html"
+           class="py-1.5 px-4 bg-emerald-600 text-white text-sm font-medium rounded-lg shadow hover:bg-emerald-700 transition">
+          Preview
+        </a>
+      </div>
     </div>
 
-    <h1 class="text-3xl font-bold text-gray-800 text-center">📡 Панель управления камерой</h1>
-    <p class="text-gray-600 text-center">Запрашивайте информацию от бэкенда одним кликом</p>
+    <!-- Блок 1: Просмотр файлов -->
+    <section class="rounded-xl border border-gray-200 bg-gray-50 p-6 shadow-sm">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">📂 Просмотр файлов</h2>
 
-    <!-- Блок 1: Информация о камере -->
-    <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-lg text-white">
-      <h2 class="text-2xl font-semibold mb-4">Информация о камере</h2>
-      <form class="space-y-4">
-        <div id="camera-info"
-             class="p-4 bg-white/20 rounded-lg text-sm whitespace-pre-wrap">
-          Здесь появится информация о камере...
-        </div>
-        <button
-          type="button"
-          class="w-full py-2 px-4 bg-white text-blue-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
-          onclick="fetchCameraInfo()">
-          Получить информацию
-        </button>
-      </form>
-    </div>
+      <div id="files-view"
+           class="p-4 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 min-h-[150px] overflow-auto max-h-[300px]">
+        Здесь появится список файлов...
+      </div>
 
-    <!-- Блок 2: Список файлов -->
-    <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white">
-      <h2 class="text-2xl font-semibold mb-4">📂 Список файлов</h2>
-      <form class="space-y-4">
-        <div id="files-list"
-             class="p-4 bg-white/20 rounded-lg text-sm whitespace-pre-wrap">
-          Здесь появится список файлов...
-        </div>
-        <button
-          type="button"
-          class="w-full py-2 px-4 bg-white text-green-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
-          onclick="fetchFilesList()">
-          Получить список файлов
-        </button>
-      </form>
-    </div>
+      <button
+        type="button"
+        class="mt-4 w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
+        onclick="fetchFilesList()">
+        🔄 Обновить список файлов
+      </button>
+    </section>
+
+    <!-- Блок 2: Управление камерой -->
+    <section class="rounded-xl border border-gray-200 bg-gray-50 p-6 shadow-sm">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">🎥 Управление камерой</h2>
+
+      <div id="camera-process"
+           class="p-4 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 min-h-[150px]">
+        Здесь появится информация после запуска...
+      </div>
+
+      <button
+        type="button"
+        class="mt-4 w-full py-2 px-4 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition"
+        onclick="fetchCameraProcess()">
+        ▶️ Запустить процесс
+      </button>
+    </section>
 
   </div>
 
   <script>
-    // --- Динамический базовый URL для API на порту 8001
     const API_BASE_8001 = `${window.location.protocol}//${window.location.hostname}:8001`;
 
-    // функция форматирования JSON в красивый список
-    function renderJSON(data) {
-      if (typeof data !== "object") return String(data);
-
-      let html = '<ul class="space-y-1">';
-      for (const key in data) {
-        if (Array.isArray(data[key])) {
-          html += `<li><span class="font-semibold">${key}:</span> <ul class="list-disc list-inside ml-4">`;
-          data[key].forEach(item => {
-            html += `<li>${item}</li>`;
-          });
-          html += '</ul></li>';
-        } else if (typeof data[key] === "object") {
-          html += `<li><span class="font-semibold">${key}:</span> ${renderJSON(data[key])}</li>`;
-        } else {
-          html += `<li><span class="font-semibold">${key}:</span> ${data[key]}</li>`;
-        }
+    // ---------- Вспомогательные функции ----------
+    function renderFilesList(data) {
+      if (data.status && data.status.includes("Ошибка")) {
+        return `<div class="text-red-600 font-medium">${data.message}</div>`;
       }
-      html += "</ul>";
+
+      if (!data.capture_dirs) {
+        return `<div class="text-gray-500">Нет данных о файлах</div>`;
+      }
+
+      let html = `
+        <div class="mb-2 text-sm text-gray-600">
+          <span class="font-semibold text-gray-800">Статус:</span> ${data.status}
+        </div>
+        <div class="divide-y divide-gray-200">
+      `;
+      for (const [dir, files] of Object.entries(data.capture_dirs)) {
+        html += `
+          <div class="py-2">
+            <div class="font-semibold text-gray-800">${dir}</div>
+            ${files.length
+              ? `<ul class="ml-4 list-disc text-gray-600">
+                  ${files.map(f => `<li>${f}</li>`).join("")}
+                </ul>`
+              : `<div class="ml-4 text-gray-500 italic">(нет файлов)</div>`}
+          </div>`;
+      }
+      html += "</div>";
       return html;
     }
 
-    // запрос информации о камере
-    async function fetchCameraInfo() {
+    function renderCameraProcess(data) {
+      if (data.detail) {
+        return `<div class="text-red-600 font-medium">${data.detail}</div>`;
+      }
+
+      return `
+        <div class="space-y-3">
+          <div><span class="font-semibold text-gray-800">Статус:</span> ${data.status}</div>
+          <div><span class="font-semibold text-gray-800">Файл:</span> ${data.ply_file}</div>
+          <div>
+            <span class="font-semibold text-gray-800">Визуализация:</span>
+            <div class="ml-3 text-gray-700">
+              <div><b>Статус:</b> ${data.visualization?.status || "-"}</div>
+              <div><b>Сообщение:</b> ${data.visualization?.message || "-"}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ---------- API-запросы ----------
+    async function fetchFilesList() {
+      const el = document.getElementById('files-view');
+      el.innerHTML = '<div class="text-gray-400 italic">Загрузка...</div>';
       try {
-        const url = `${API_BASE_8001}/camera/info`;
-        console.log('Fetching:', url);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        const response = await fetch(`${API_BASE_8001}/files`);
         const data = await response.json();
-        document.getElementById('camera-info').innerHTML = renderJSON(data);
+        el.innerHTML = renderFilesList(data);
       } catch (err) {
-        console.error('Camera info error:', err);
-        document.getElementById('camera-info').innerHTML = `<span class="text-red-300">Ошибка: ${err.message}</span>`;
+        el.innerHTML = `<div class="text-red-600">Ошибка: ${err.message}</div>`;
       }
     }
 
-    // запрос списка файлов
-    async function fetchFilesList() {
+    async function fetchCameraProcess() {
+      const el = document.getElementById('camera-process');
+      el.innerHTML = '<div class="text-gray-400 italic">Запрос выполняется...</div>';
       try {
-        const url = `${API_BASE_8001}/files`;
-        console.log('Fetching:', url);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        const response = await fetch(`${API_BASE_8001}/process`);
         const data = await response.json();
-        document.getElementById('files-list').innerHTML = renderJSON(data);
+        el.innerHTML = renderCameraProcess(data);
       } catch (err) {
-        console.error('Files list error:', err);
-        document.getElementById('files-list').innerHTML = `<span class="text-red-300">Ошибка: ${err.message}</span>`;
+        el.innerHTML = `<div class="text-red-600">Ошибка: ${err.message}</div>`;
       }
     }
   </script>

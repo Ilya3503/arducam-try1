@@ -140,7 +140,6 @@ async def process():
 
     return {
         "status": "Успешно",
-        "preview_b64": preview_b64,
         "ply_file": str(ply_file),
         "visualization": {
             "status": visualization_status,
@@ -222,14 +221,3 @@ async def get_files_list():
 
     return {"status": "Папка успешно прочитана", "capture_dirs": all_files}
 
-
-
-
-
-# @app.get("/download_ply", tags=["Эндпоинты обработки"], summary="Скачивание основного файла PointCloud")
-# async def download_ply(name: str):
-#     safe_name = os.path.basename(name)
-#     path = os.path.join(SHARED_DIR, safe_name)
-#     if not os.path.exists(path):
-#         raise HTTPException(status_code=404, detail="PLY не найден")
-#     return FileResponse(path, media_type="application/octet-stream", filename=safe_name)

@@ -2,143 +2,234 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Обработка облака точек</title>
+  <title>Кластеризация и обработка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-7xl p-6 bg-white shadow-2xl rounded-2xl grid grid-cols-2 gap-6">
+<body class="bg-gray-100 flex justify-center py-10">
 
-    <!-- Левая половина: Информация + сюда будут попадать изображения -->
-    <div class="col-span-1 flex flex-col">
-      <div class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-lg text-white flex flex-col">
-        <h2 class="text-2xl font-semibold mb-4">📄 Информация и изображения</h2>
-        <div id="info-block"
-             class="flex-1 p-4 bg-white/20 rounded-lg text-sm whitespace-pre-wrap overflow-auto">
-          Здесь появится изображение...
-        </div>
+<div class="w-4/5 space-y-8">
+
+  <!-- ----------------------- Первичная обработка ----------------------- -->
+  <div class="bg-white p-6 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-semibold mb-4">Первичная обработка данных</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="space-y-2">
+        <!-- Поля ввода -->
+        <label class="block">
+          <span class="font-medium">Использовать последний файл</span>
+          <select id="pp-use-latest" class="w-full mt-1 p-2 border rounded">
+            <option value="true" selected>Да</option>
+            <option value="false">Нет</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="font-medium">Папка</span>
+          <input type="text" id="pp-folder" class="w-full mt-1 p-2 border rounded" value="capture_001">
+        </label>
+        <label class="block">
+          <span class="font-medium">Файл</span>
+          <input type="text" id="pp-filename" class="w-full mt-1 p-2 border rounded" value="pointcloud_raw.ply">
+        </label>
+        <label class="block">
+          <span class="font-medium">Проекция</span>
+          <select id="pp-projection" class="w-full mt-1 p-2 border rounded">
+            <option value="xy" selected>XY</option>
+            <option value="xz">XZ</option>
+            <option value="yz">YZ</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="font-medium">Размер вокселя</span>
+          <input type="number" id="pp-voxel" class="w-full mt-1 p-2 border rounded" value="8.0" step="0.01">
+        </label>
+        <label class="block">
+          <span class="font-medium">Количество соседей</span>
+          <input type="number" id="pp-nb-neighbors" class="w-full mt-1 p-2 border rounded" value="20">
+        </label>
+        <label class="block">
+          <span class="font-medium">Std Ratio</span>
+          <input type="number" id="pp-std-ratio" class="w-full mt-1 p-2 border rounded" value="2.0" step="0.01">
+        </label>
+        <label class="block">
+          <span class="font-medium">Порог расстояния</span>
+          <input type="number" id="pp-distance-threshold" class="w-full mt-1 p-2 border rounded" value="70.0" step="0.01">
+        </label>
+        <label class="block">
+          <span class="font-medium">RANSAC n</span>
+          <input type="number" id="pp-ransac-n" class="w-full mt-1 p-2 border rounded" value="3">
+        </label>
+        <label class="block">
+          <span class="font-medium">Количество итераций</span>
+          <input type="number" id="pp-num-iterations" class="w-full mt-1 p-2 border rounded" value="1000">
+        </label>
+        <label class="block">
+          <span class="font-medium">Мин. X</span>
+          <input type="number" id="pp-min-x" class="w-full mt-1 p-2 border rounded" value="-231">
+        </label>
+        <label class="block">
+          <span class="font-medium">Мин. Y</span>
+          <input type="number" id="pp-min-y" class="w-full mt-1 p-2 border rounded" value="-190">
+        </label>
+        <label class="block">
+          <span class="font-medium">Мин. Z</span>
+          <input type="number" id="pp-min-z" class="w-full mt-1 p-2 border rounded" value="474">
+        </label>
+        <label class="block">
+          <span class="font-medium">Макс. X</span>
+          <input type="number" id="pp-max-x" class="w-full mt-1 p-2 border rounded" value="264">
+        </label>
+        <label class="block">
+          <span class="font-medium">Макс. Y</span>
+          <input type="number" id="pp-max-y" class="w-full mt-1 p-2 border rounded" value="190">
+        </label>
+        <label class="block">
+          <span class="font-medium">Макс. Z</span>
+          <input type="number" id="pp-max-z" class="w-full mt-1 p-2 border rounded" value="670">
+        </label>
+      </div>
+
+      <!-- Вывод ответа -->
+      <div>
+        <span class="font-medium">Ответ сервера:</span>
+        <div id="pp-output" class="mt-1 p-4 border rounded h-[500px] overflow-auto bg-gray-50"></div>
       </div>
     </div>
 
-    <!-- Правая половина -->
-    <div class="col-span-1 flex flex-col space-y-6">
-
-      <!-- Кнопки перехода -->
-      <div class="w-full flex justify-end gap-2">
-        <a href="index.html"
-           class="py-1 px-3 bg-blue-500 text-white text-sm font-medium rounded-lg shadow hover:bg-blue-600 transition">
-          New1
-        </a>
-        <a href="info.html"
-           class="py-1 px-3 bg-green-500 text-white text-sm font-medium rounded-lg shadow hover:bg-green-600 transition">
-          Info
-        </a>
-      </div>
-
-      <!-- Превью (справа сверху) -->
-      <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white">
-        <h2 class="text-xl font-semibold mb-4">📷 Превью (до обработки)</h2>
-        <form id="preview-form" class="space-y-4">
-          <label class="block">
-            <span class="font-semibold">Проекция:</span>
-            <select id="preview-projection" class="w-full mt-1 p-2 rounded-xl text-gray-700">
-              <option value="xy">XY</option>
-              <option value="xz">XZ</option>
-              <option value="yz">YZ</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            class="w-full py-2 px-4 bg-white text-green-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
-            onclick="loadPreview()">
-            Получить превью
-          </button>
-        </form>
-      </div>
-
-      <!-- Препроцессинг (справа снизу) -->
-      <div class="flex-1 bg-gradient-to-r from-purple-500 to-pink-600 p-6 rounded-2xl shadow-lg text-white flex flex-col">
-        <h2 class="text-2xl font-semibold mb-4">⚙️ Препроцессинг</h2>
-        <form id="preprocess-form" class="space-y-4 flex-1 flex flex-col">
-          <label class="block">
-            <span class="font-semibold">Размер вокселя:</span>
-            <input type="number" id="voxel-size" value="0.01" step="0.01" class="w-full mt-1 p-2 rounded-xl text-gray-700" />
-          </label>
-          <label class="block">
-            <span class="font-semibold">Проекция:</span>
-            <select id="process-projection" class="w-full mt-1 p-2 rounded-xl text-gray-700">
-              <option value="xy">XY</option>
-              <option value="xz">XZ</option>
-              <option value="yz">YZ</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            class="mt-auto w-full py-2 px-4 bg-white text-purple-600 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
-            onclick="runPreprocess()">
-            Запустить препроцессинг
-          </button>
-        </form>
-      </div>
-    </div>
+    <button class="mt-4 py-2 px-4 bg-blue-600 text-white rounded shadow hover:bg-blue-700" onclick="runPreprocess()">
+      Запустить препроцессинг
+    </button>
   </div>
 
-  <script>
-    // --- Динамические базовые URL для API
-    const API_BASE_8003 = `${window.location.protocol}//${window.location.hostname}:8003`;
+  <!-- ----------------------- Кластеризация ----------------------- -->
+  <div class="bg-white p-6 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-semibold mb-4">Кластеризация и визуализация</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="space-y-2">
+        <label class="block">
+          <span class="font-medium">Использовать последний файл</span>
+          <select id="cl-use-latest" class="w-full mt-1 p-2 border rounded">
+            <option value="true" selected>Да</option>
+            <option value="false">Нет</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="font-medium">Папка</span>
+          <input type="text" id="cl-folder" class="w-full mt-1 p-2 border rounded" value="capture_001">
+        </label>
+        <label class="block">
+          <span class="font-medium">Файл</span>
+          <input type="text" id="cl-filename" class="w-full mt-1 p-2 border rounded" value="processed_cloud.ply">
+        </label>
+        <label class="block">
+          <span class="font-medium">Eps</span>
+          <input type="number" id="cl-eps" class="w-full mt-1 p-2 border rounded" value="30">
+        </label>
+        <label class="block">
+          <span class="font-medium">Мин. точек</span>
+          <input type="number" id="cl-min-points" class="w-full mt-1 p-2 border rounded" value="20">
+        </label>
+        <label class="block">
+          <span class="font-medium">Макс. точек</span>
+          <input type="number" id="cl-max-points" class="w-full mt-1 p-2 border rounded" value="1000">
+        </label>
+      </div>
 
-    // Загрузка превью -> вставка в левый блок
-    async function loadPreview() {
-      const projection = document.getElementById("preview-projection").value;
-      try {
-        console.log('Запрос превью с проекцией:', projection);
-        const url = `${API_BASE_8003}/preview_before_preprocess?projection=${projection}`;
-        console.log('URL:', url);
+      <div>
+        <span class="font-medium">Ответ сервера:</span>
+        <div id="cl-output" class="mt-1 p-4 border rounded h-[500px] overflow-auto bg-gray-50"></div>
+      </div>
+    </div>
 
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    <button class="mt-4 py-2 px-4 bg-green-600 text-white rounded shadow hover:bg-green-700" onclick="runVisualizer()">
+      Запустить визуализацию
+    </button>
+  </div>
 
-        const data = await res.json();
-        console.log('Получены данные:', data);
+</div>
 
-        document.getElementById("info-block").innerHTML =
-          `<p class="mb-2">[Превью] Файл: <b>${data.file}</b>, проекция: <b>${data.projection}</b></p>
-           <img src="data:image/png;base64,${data.preview_base64}" alt="preview" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
-      } catch (err) {
-        console.error('Ошибка загрузки превью:', err);
-        document.getElementById("info-block").innerHTML =
-          `<span class="text-red-300">Ошибка: ${err.message}</span>`;
-      }
-    }
+<script>
+const API_BASE = "http://localhost:8003";
 
-    // Препроцессинг -> вставка в левый блок
-    async function runPreprocess() {
-      const voxelSize = document.getElementById("voxel-size").value;
-      const projection = document.getElementById("process-projection").value;
-      try {
-        console.log('Запрос препроцессинга:', { voxelSize, projection });
-        const url = `${API_BASE_8003}/preprocess?voxel_size=${voxelSize}&projection=${projection}`;
-        console.log('URL:', url);
+function renderPreprocessOutput(data) {
+  return `
+    <p><b>Статус:</b> ${data.status}</p>
+    <p><b>Файл:</b> ${data.file}</p>
+    <p><b>Папка:</b> ${data.folder}</p>
+    <p><b>Проекция:</b> ${data.projection}</p>
+    <p><b>Визуализация:</b> ${data.visualization.status} - ${data.visualization.message}</p>
+  `;
+}
 
-        const res = await fetch(url, {
-          method: "POST"
-        });
-        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+function renderClusters(clusters) {
+  return clusters.map(cluster => `
+    <div class="border p-2 rounded bg-gray-100 mb-2">
+      <p><b>ID кластера:</b> ${cluster.id} | Порядок захвата: ${cluster.grab_order} | Кол-во точек: ${cluster.points_count}</p>
+      <p><b>Центроид:</b> [${cluster.centroid.join(", ")}]</p>
+      <p><b>Расстояние:</b> ${cluster.distance} | Приоритет: ${cluster.priority}</p>
+      <p><b>AABB Min:</b> [${cluster.aabb_min.join(", ")}] | Max: [${cluster.aabb_max.join(", ")}]</p>
+      <p><b>OBB Центр:</b> [${cluster.obb_center.join(", ")}]</p>
+      <p><b>OBB Extent:</b> [${cluster.obb_extent.join(", ")}]</p>
+      <p><b>OBB корректен:</b> ${cluster.obb_valid}</p>
+    </div>
+  `).join("");
+}
 
-        const data = await res.json();
-        console.log('Результат препроцессинга:', data);
+async function runPreprocess() {
+  const params = new URLSearchParams({
+    use_latest: document.getElementById("pp-use-latest").value,
+    folder: document.getElementById("pp-folder").value,
+    filename: document.getElementById("pp-filename").value,
+    projection: document.getElementById("pp-projection").value,
+    voxel_size: document.getElementById("pp-voxel").value,
+    nb_neighbors: document.getElementById("pp-nb-neighbors").value,
+    std_ratio: document.getElementById("pp-std-ratio").value,
+    distance_threshold: document.getElementById("pp-distance-threshold").value,
+    ransac_n: document.getElementById("pp-ransac-n").value,
+    num_iterations: document.getElementById("pp-num-iterations").value,
+    min_bound_x: document.getElementById("pp-min-x").value,
+    min_bound_y: document.getElementById("pp-min-y").value,
+    min_bound_z: document.getElementById("pp-min-z").value,
+    max_bound_x: document.getElementById("pp-max-x").value,
+    max_bound_y: document.getElementById("pp-max-y").value,
+    max_bound_z: document.getElementById("pp-max-z").value
+  });
 
-        document.getElementById("info-block").innerHTML =
-          `<p class="mb-2">[Препроцессинг] Файл: <b>${data.file}</b><br/> Воксель: <b>${data.voxel_size}</b><br/>Проекция: <b>${data.projection}</b></p>
-           <img src="data:image/png;base64,${data.preview_base64}" alt="processed" class="mx-auto rounded-lg shadow-lg w-full h-auto"/>`;
-      } catch (err) {
-        console.error('Ошибка препроцессинга:', err);
-        document.getElementById("info-block").innerHTML =
-          `<span class="text-red-300">Ошибка: ${err.message}</span>`;
-      }
-    }
-  </script>
+  try {
+    const res = await fetch(`${API_BASE}/preprocess?${params.toString()}`, { method: "POST" });
+    const data = await res.json();
+    document.getElementById("pp-output").innerHTML = renderPreprocessOutput(data);
+  } catch (err) {
+    document.getElementById("pp-output").innerText = `Ошибка: ${err}`;
+  }
+}
+
+async function runVisualizer() {
+  const params = new URLSearchParams({
+    use_latest: document.getElementById("cl-use-latest").value,
+    folder: document.getElementById("cl-folder").value,
+    filename: document.getElementById("cl-filename").value,
+    eps: document.getElementById("cl-eps").value,
+    min_points: document.getElementById("cl-min-points").value,
+    max_points: document.getElementById("cl-max-points").value
+  });
+
+  try {
+    const res = await fetch(`${API_BASE}/send_to_visualizer?${params.toString()}`, { method: "POST" });
+    const data = await res.json();
+
+    let html = `
+      <p><b>Статус:</b> ${data.status}</p>
+      <p><b>Сообщение:</b> ${data.message}</p>
+      <p><b>Количество точек:</b> ${data.num_points}</p>
+      ${data.clusters ? renderClusters(data.clusters) : ""}
+    `;
+    document.getElementById("cl-output").innerHTML = html;
+  } catch (err) {
+    document.getElementById("cl-output").innerText = `Ошибка: ${err}`;
+  }
+}
+</script>
 
 </body>
 </html>

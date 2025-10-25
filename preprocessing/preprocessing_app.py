@@ -244,8 +244,6 @@ def preprocess(
         "status": "success",
         "file": output_file.name,
         "folder": str(output_file.parent),
-        "projection": projection,
-        "preview_base64": img_base64,
         "visualization": {
             "status": visualization_status,
             "message": visualization_message
