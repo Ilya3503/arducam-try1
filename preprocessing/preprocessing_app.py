@@ -276,6 +276,7 @@ def process_position_endpoint(
 
 
 
+
 @app.post("/send_to_visualizer", tags=["Визуализация"], summary="Отправка файла в визуализатор кластеров")
 def send_to_visualizer(
     use_latest: bool = Query(True, description="Брать последний препроцессинг-файл"),
@@ -293,7 +294,7 @@ def send_to_visualizer(
         with open(input_file, "rb") as f:
             files = {"file": (Path(input_file).name, f, "application/octet-stream")}
             response = requests.post(
-                f"{VISUALIZER_CLUSTER_URL}/visualize_clusters",
+                f"{VISUALIZER_CLUSTER_URL}",
                 files=files,
                 data={"eps": eps, "min_points": min_points},
                 timeout=60
