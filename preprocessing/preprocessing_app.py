@@ -283,7 +283,8 @@ def send_to_visualizer(
     folder: str = Query(None, description="Папка, если use_latest=False"),
     filename: str = Query(None, description="Имя файла, если use_latest=False"),
     eps: float = Query(30.0, description="eps для DBSCAN"),
-    min_points: int = Query(20, description="min_points для DBSCAN")
+    min_points: int = Query(20, description="min_points для DBSCAN"),
+    max_points: int = Query(None, description="max_points для DBSCAN"),
 ):
 
     try:
@@ -296,11 +297,11 @@ def send_to_visualizer(
             response = requests.post(
                 f"{VISUALIZER_CLUSTER_URL}",
                 files=files,
-                data={"eps": eps, "min_points": min_points},
+                data={"eps": eps, "min_points": min_points, "max_points": max_points},
                 timeout=60
             )
 
-        # --- пробуем вернуть JSON-ответ сервера ---
+
         try:
             return response.json()
         except Exception:

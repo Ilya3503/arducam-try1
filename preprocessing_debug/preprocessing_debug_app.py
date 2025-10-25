@@ -86,6 +86,21 @@ def preprocess_voxel_downsample(
 
 
 
+
+def add_cluster_labels(geoms, clusters_info):
+    for cluster_info in clusters_info:
+        center = cluster_info["centroid"]
+        sphere = o3d.geometry.TriangleMesh.create_sphere(radius=10)
+        sphere.translate(center)
+        sphere.paint_uniform_color([1, 1, 0])
+        geoms.append(sphere)
+        try:
+            text3d = o3d.geometry.Text3D(str(cluster_info["grab_order"]), position=center, font_size=20)
+            geoms.append(text3d)
+        except Exception:
+            pass
+
+
 # -------------------- Обработка: Remove Noise --------------------
 @app.post("/preprocess/remove_noise", tags=["Эндпоинты обработки"], summary="Удаление шума (Statistical Outlier Removal)")
 def preprocess_remove_noise(
@@ -419,6 +434,8 @@ async def visualize_clusters(
         center = bbox.get_center()
         axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=center)
         geoms.append(axis)
+
+        add_cluster_labels(geoms, clusters_info)
 
         o3d.visualization.draw_geometries(geoms)
 
