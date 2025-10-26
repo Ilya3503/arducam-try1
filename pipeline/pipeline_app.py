@@ -24,7 +24,7 @@ if not SHARED_DIR.exists():
 
 CAMERA_URL = os.environ.get("CAMERA_URL")
 CAMERA_URL_INFO = os.environ.get("CAMERA_URL_INFO")
-VISUALIZER_URL = os.environ.get("PROCESSING_URL", "http://100.96.67.98:8004/visualize")
+VISUALIZER_URL = os.environ.get("PROCESSING_URL", "http://100.83.202.5:8004/visualize")
 
 app = FastAPI(
     title="Pipeline Service",

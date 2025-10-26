@@ -26,8 +26,8 @@ INPUT_FILE = SHARED_DIR / "last_pointcloud.ply"
 OUTPUT_FILE = SHARED_DIR / "last_preprocessed_pointcloud.ply"
 PREVIEW_FILE = SHARED_DIR / "last_preview.png"
 PREVIEW_BEFORE_PRE_FILE = SHARED_DIR / "last_preview_before_pre.png"
-VISUALIZER_URL = os.environ.get("VISUALIZER_URL", "http://100.96.67.98:8004/visualize")
-VISUALIZER_CLUSTER_URL = os.environ.get("VISUALIZER_CLUSTER_URL", "http://100.96.67.98:8004/visualize_clusters")
+VISUALIZER_URL = os.environ.get("VISUALIZER_URL", "http://100.83.202.5:8004/visualize")
+VISUALIZER_CLUSTER_URL = os.environ.get("VISUALIZER_CLUSTER_URL", "http://100.83.202.5:8004/visualize_clusters")
 
 
 
